@@ -163,6 +163,8 @@ a { color: #9ecbff; }
 .modal-card { width: min(760px, 100%); max-height: calc(100vh - 32px); overflow-y: auto; background: var(--panel-solid); border: 1px solid var(--line); border-radius: 20px; padding: 20px 22px; box-shadow: 0 30px 80px rgba(0,0,0,0.5); touch-action: pan-y; }
 .modal-card h2 { margin: 0 0 14px; }
 .menu-col { display: grid; gap: 8px; }
+.confirm { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 12px; background: rgba(255, 82, 82, 0.1); border: 1px solid rgba(255, 82, 82, 0.35); }
+.confirm span { flex: 1 1 200px; }
 .help-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; margin-bottom: 12px; }
 .help-grid > div { background: rgba(255,255,255,0.04); padding: 8px 10px; border-radius: 10px; }
 kbd { display: inline-block; min-width: 24px; padding: 1px 6px; margin: 0 2px; border-radius: 6px; background: #2a3150; border: 1px solid #3b4470; border-bottom-width: 3px; font: 600 12px ui-monospace, monospace; text-align: center; }

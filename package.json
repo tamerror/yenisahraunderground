@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "build:artifact": "vite build --config vite.artifact.config.ts && node tools/make-artifact.mjs"
   },
   "dependencies": {
     "three": "^0.186.1"

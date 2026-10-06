@@ -281,6 +281,11 @@ export class Hud {
         ${this.cb.onCycleDay ? `<button class="btn" data-a="day">🌗 Gün döngüsü: <span class="day-label">${this.cb.dayLabel?.() ?? ''}</span></button>` : ''}
         <button class="btn" data-a="menu">🏠 Ana menü</button>
         <button class="btn danger" data-a="reset">♻️ Bu mahallenin ilerlemesini sıfırla</button>
+        <div class="confirm hidden">
+          <span>Tüm puan, koleksiyon ve keşif silinsin mi?</span>
+          <button class="btn danger" data-a="reset-yes">Evet, sıfırla</button>
+          <button class="btn" data-a="reset-no">Vazgeç</button>
+        </div>
       </div>`;
     c.querySelectorAll<HTMLButtonElement>('button').forEach((b) =>
       b.addEventListener('click', () => {
@@ -290,7 +295,9 @@ export class Hud {
         if (a === 'help') this.openModal('help');
         if (a === 'menu') this.cb.onMenu();
         if (a === 'day') c.querySelector('.day-label')!.textContent = this.cb.onCycleDay?.() ?? '';
-        if (a === 'reset' && confirm('Tüm puan, koleksiyon ve keşif sıfırlansın mı?')) this.cb.onReset();
+        if (a === 'reset') c.querySelector('.confirm')!.classList.remove('hidden');
+        if (a === 'reset-no') c.querySelector('.confirm')!.classList.add('hidden');
+        if (a === 'reset-yes') this.cb.onReset();
       }),
     );
   }
