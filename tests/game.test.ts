@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CATS, comboMultiplier, ITEM_BY_ID, levelFor, MAX_MAMA, RECORD_TITLES } from '../src/core/content';
-import { CONFIG_3D, Game, type GameEvent } from '../src/core/game';
+import { CONFIG_3D, dailyItemFor, Game, type GameEvent } from '../src/core/game';
 import { deserialize, newProgress, serialize, markVisited } from '../src/core/progress';
 import { mulberry32 } from '../src/core/rng';
 import { loadYenisahra, MemoryStore, plusArea } from './fixtures';
@@ -133,6 +133,28 @@ describe('Game on synthetic map', () => {
     const g2 = make(store);
     expect(g2.items.filter((i) => i.def.id === 'plak').length).toBe(RECORD_TITLES.length - 1);
     expect(g2.progress.records).toEqual([rec.record]);
+  });
+
+  it('the item of the day is worth double and changes by date', () => {
+    const g = new Game(plusArea(), { rng: mulberry32(7), date: new Date(2026, 9, 6) });
+    const ids = new Set([0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((d) => dailyItemFor(new Date(2026, 9, 6 + d)).id));
+    expect(ids.size).toBeGreaterThan(1);
+    g.items.length = 0;
+    g.items.push({ uid: 1, def: g.dailyItem, x: g.player.x, y: g.player.y, phase: 0 });
+    const ev = collectEvents(g);
+    g.update(0.016, null);
+    const col = ev.find((e) => e.type === 'collect');
+    expect(col && col.type === 'collect' && col.points).toBe(g.dailyItem.points * 2);
+  });
+
+  it('reports per-street exploration percentage', () => {
+    const g = make();
+    expect(g.streetPct('Kuzey Sokağı')).toBe(0);
+    expect(g.streetPct('Yok Böyle Sokak')).toBe(0);
+    g.player.x = 0;
+    g.player.y = 50;
+    g.update(0.016, null);
+    expect(g.streetPct('Kuzey Sokağı')).toBeGreaterThan(0);
   });
 
   it('power-ups apply and expire', () => {

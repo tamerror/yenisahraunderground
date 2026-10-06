@@ -120,6 +120,15 @@ export interface GameOptions {
   rng?: Rng;
   /** Area save key; defaults to the area name. */
   saveId?: string;
+  /** Date used to pick the item of the day (defaults to today). */
+  date?: Date;
+}
+
+/** Common and medium collectibles can be the "item of the day" (double points). */
+export function dailyItemFor(date: Date): ItemDef {
+  const pool = ITEMS.filter((i) => i.kind === 'collectible' && (i.rarity === 'yaygın' || i.rarity === 'orta'));
+  const key = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
+  return pool[hashString(key) % pool.length];
 }
 
 const RECORD_COUNT = RECORD_TITLES.length;
@@ -138,6 +147,7 @@ export class Game {
   readonly powerups: Record<string, number> = {};
   time = 0;
   currentStreet: string | null = null;
+  readonly dailyItem: ItemDef;
   /** Sample ids marked visited during the last update (for minimap fog). */
   readonly freshSamples: number[] = [];
 
@@ -158,6 +168,7 @@ export class Game {
     this.config = opts.config ?? CONFIG_3D;
     this.rng = opts.rng ?? mulberry32((Math.random() * 2 ** 32) >>> 0);
     this.store = opts.store ?? null;
+    this.dailyItem = dailyItemFor(opts.date ?? new Date());
     this.proj = new Projection(area.center);
     this.net = new StreetNetwork(area, this.proj);
     this.boundary = area.boundary.map((p) => this.proj.toLocal(p));
@@ -355,6 +366,14 @@ export class Game {
 
   streetVisited(name: string): number {
     return this.streetVisits.get(name) ?? 0;
+  }
+
+  /** Exploration of a named street in percent (completion counts at 90 % of its samples). */
+  streetPct(name: string): number {
+    const st = this.net.streets.get(name);
+    if (!st) return 0;
+    if (this.progress.completedStreets.includes(name)) return 100;
+    return Math.min(99, Math.floor((this.streetVisited(name) / Math.ceil(st.sampleCount * 0.9)) * 100));
   }
 
   speedMultiplier(): number {
@@ -600,7 +619,7 @@ export class Game {
       this.emit({ type: 'powerup', id: def.id });
     } else {
       mult = this.bumpCombo();
-      points = def.points * mult;
+      points = def.points * mult * (def.id === this.dailyItem.id ? 2 : 1);
       this.addScore(points);
       if (def.id === 'mama') this.progress.mama = Math.min(MAX_MAMA, this.progress.mama + 1);
       if (def.kind === 'record' && it.record !== undefined && !this.progress.records.includes(it.record)) {

@@ -23,6 +23,9 @@ export interface HudCallbacks {
   onToggleMute(): boolean;
   onResume(): void;
   onPause(): void;
+  onPlayRecord?(index: number): boolean;
+  onCycleDay?(): string;
+  dayLabel?(): string;
 }
 
 type Projector = (x: number, y: number, h?: number) => { x: number; y: number } | null;
@@ -59,7 +62,7 @@ export class Hud {
           <button data-act="pause" title="Durdur (Esc)">⏸️</button>
         </div>
         <div class="minimap-slot"></div>
-        <div class="panel quests"><h4>Görevler</h4><ol class="quest-list"></ol></div>
+        <div class="panel quests"><div class="daily" title="Bugün bu eşya iki kat puan">Günün eşyası: ${game.dailyItem.emoji} ${game.dailyItem.name} <b>×2</b></div><h4>Görevler</h4><ol class="quest-list"></ol></div>
       </div>
       <div class="panel inventory">
         <span class="mama" title="Kedi maması">🐟 <b class="mama-val">0</b>/${MAX_MAMA}</span>
@@ -121,7 +124,9 @@ export class Hud {
       this.set('cv', '.combo-val', `x${g.combo.mult}`);
       this.$('.combo-bar').style.width = `${(g.combo.timer / 4.5) * 100}%`;
     }
-    this.set('st', '.street-name', g.currentStreet ? `📍 ${g.currentStreet}` : `📍 ${g.area.name}`);
+    const st = g.currentStreet;
+    const pct = st && g.net.streets.has(st) ? g.streetPct(st) : null;
+    this.set('st', '.street-name', st ? `📍 ${st}${pct !== null ? ` · ${pct === 100 ? '✔' : `%${pct}`}` : ''}` : `📍 ${g.area.name}`);
     this.set('mama', '.mama-val', String(p.mama));
     this.set('cats', '.cats-val', `🐈 ${Object.keys(p.fed).length}/${CATS.length}`);
     this.set('rec', '.records-val', `💿 ${p.records.length}/${RECORD_TITLES.length}`);
@@ -131,7 +136,13 @@ export class Hud {
     this.set('pu', '.powerups', pu, true);
     const qs = p.quests
       .map((q, i) => {
-        const pct = Math.min(100, (q.type === 'explore' ? (q.progress - (q.base ?? 0)) / Math.max(1, q.goal - (q.base ?? 0)) : q.progress / q.goal) * 100);
+        const frac =
+          q.type === 'explore'
+            ? (q.progress - (q.base ?? 0)) / Math.max(1, q.goal - (q.base ?? 0))
+            : q.type === 'combo'
+              ? (q.progress - 1) / Math.max(1, q.goal - 1)
+              : q.progress / q.goal;
+        const pct = Math.max(0, Math.min(100, frac * 100));
         const prog = q.type === 'street' ? `${Math.round(pct)}%` : q.type === 'explore' ? `%${q.progress}` : q.type === 'combo' ? `x${q.progress}` : `${q.progress}/${q.goal}`;
         return `<li style="--qc:${QUEST_COLORS[i]}"><span class="q-title">${esc(q.title)}</span><span class="q-meta"><span class="q-prog">${prog}</span><span class="q-rew">+${q.reward}</span></span><div class="bar"><i style="width:${pct.toFixed(1)}%"></i></div></li>`;
       })
@@ -246,6 +257,7 @@ export class Hud {
         <button class="btn primary" data-a="resume">▶ Devam et</button>
         <button class="btn" data-a="album">📒 Albüm</button>
         <button class="btn" data-a="help">🎮 Kontroller</button>
+        ${this.cb.onCycleDay ? `<button class="btn" data-a="day">🌗 Gün döngüsü: <span class="day-label">${this.cb.dayLabel?.() ?? ''}</span></button>` : ''}
         <button class="btn" data-a="menu">🏠 Ana menü</button>
         <button class="btn danger" data-a="reset">♻️ Bu mahallenin ilerlemesini sıfırla</button>
       </div>`;
@@ -256,6 +268,7 @@ export class Hud {
         if (a === 'album') this.openModal('album');
         if (a === 'help') this.openModal('help');
         if (a === 'menu') this.cb.onMenu();
+        if (a === 'day') c.querySelector('.day-label')!.textContent = this.cb.onCycleDay?.() ?? '';
         if (a === 'reset' && confirm('Tüm puan, koleksiyon ve keşif sıfırlansın mı?')) this.cb.onReset();
       }),
     );
@@ -313,7 +326,7 @@ export class Hud {
     } else if (this.albumTab === 'records') {
       body = `<div class="records">${RECORD_TITLES.map((t, i) => {
         const has = p.records.includes(i);
-        return `<div class="record ${has ? '' : 'locked'}"><div class="vinyl"></div><span>${has ? esc(t) : `Vol. ${i + 1} — ???`}</span></div>`;
+        return `<div class="record ${has ? '' : 'locked'}"><div class="vinyl"></div><span>${has ? esc(t) : `Vol. ${i + 1} — ???`}</span>${has && this.cb.onPlayRecord ? `<button class="btn play" data-rec="${i}">▶ Çal</button>` : ''}</div>`;
       }).join('')}</div><p class="muted">Plaklar ${esc(g.area.name)}'nın çıkmaz sokaklarının sonunda saklı.</p>`;
     } else if (this.albumTab === 'badges') {
       body = `<div class="grid">${BADGES.map((b) => {
@@ -349,6 +362,13 @@ export class Hud {
       b.addEventListener('click', () => {
         this.albumTab = b.dataset.tab!;
         this.renderAlbum();
+      }),
+    );
+    c.querySelectorAll<HTMLButtonElement>('.play').forEach((b) =>
+      b.addEventListener('click', () => {
+        const playing = this.cb.onPlayRecord?.(Number(b.dataset.rec));
+        c.querySelectorAll<HTMLButtonElement>('.play').forEach((o) => (o.textContent = '▶ Çal'));
+        if (playing) b.textContent = '⏹ Durdur';
       }),
     );
     c.querySelector('.close-btn')!.addEventListener('click', () => this.closeModal());

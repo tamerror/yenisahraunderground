@@ -47,6 +47,9 @@ function saveSettings(s: Settings): void {
 
 const OSM_CACHE_DAYS = 30;
 
+type DayMode = 'auto' | 'day' | 'night';
+const DAY_LABELS: Record<DayMode, string> = { auto: 'Otomatik', day: 'Hep gündüz', night: 'Hep gece' };
+
 async function loadArea(semt: string, progress: (m: string) => void): Promise<{ area: AreaData; slug: string }> {
   const bundled = findBundled(semt);
   if (bundled) {
@@ -86,6 +89,7 @@ class App {
   private lastT = 0;
   private paused = false;
   private slowFrames = 0;
+  private dayMode: DayMode = 'auto';
   private readonly root = $('game-root');
   private onResize = () => this.renderer?.resize();
 
@@ -188,6 +192,16 @@ class App {
         onToggleMute: () => this.sfx.toggleMute(),
         onPause: () => this.setPaused(true),
         onResume: () => this.setPaused(false),
+        onPlayRecord: (i) => {
+          if (this.sfx.playingRecord === i) {
+            this.sfx.stopRecord();
+            return false;
+          }
+          this.sfx.playRecord(i);
+          return true;
+        },
+        onCycleDay: settings.mode === '3d' ? () => this.cycleDay() : undefined,
+        dayLabel: () => DAY_LABELS[this.dayMode],
       });
       this.hud.setMuted(this.sfx.muted);
       if (settings.mode === 'sv') {
@@ -207,6 +221,13 @@ class App {
         this.renderer = await this.make3D(game);
       }
       this.hud.projector = (x, y, h) => this.renderer?.project(x, y, h) ?? null;
+      try {
+        const dm = store?.getItem('ysu:daymode') as DayMode | null;
+        if (dm && dm in DAY_LABELS) this.dayMode = dm;
+      } catch {
+        /* ignore */
+      }
+      this.applyDayMode();
       this.minimap = new Minimap(this.hud.minimapSlot, game);
       this.bigmap = new BigMap(this.root, game);
       this.wireEvents(game);
@@ -222,6 +243,7 @@ class App {
       } else {
         this.hud.toast(`${area.name} — iyi gezmeler!`, 'info', '👋');
       }
+      this.hud.toast(`Günün eşyası: ${game.dailyItem.name} — bugün iki kat puan!`, 'rare', game.dailyItem.emoji);
       (window as unknown as { __ysu: unknown }).__ysu = { game, app: this };
       this.lastT = performance.now();
       this.raf = requestAnimationFrame(this.loop);
@@ -234,9 +256,34 @@ class App {
     }
   }
 
+  private applyDayMode(): void {
+    const w = (this.renderer as { world?: { dayTime: number; dayLength: number } } | null)?.world;
+    if (!w) return;
+    if (this.dayMode === 'auto') w.dayLength = 720;
+    else {
+      w.dayLength = 0;
+      w.dayTime = this.dayMode === 'day' ? 0.45 : 0.95;
+    }
+  }
+
+  private cycleDay(): string {
+    const order: DayMode[] = ['auto', 'day', 'night'];
+    this.dayMode = order[(order.indexOf(this.dayMode) + 1) % order.length];
+    try {
+      store?.setItem('ysu:daymode', this.dayMode);
+    } catch {
+      /* ignore */
+    }
+    this.applyDayMode();
+    return DAY_LABELS[this.dayMode];
+  }
+
   private async make3D(game: Game): Promise<Renderer> {
     const { World3D } = await import('./render/world3d');
     const w = new World3D(this.root, game);
+    // start at the real time of day so evening players get the lit-up city
+    const now = new Date();
+    w.dayTime = (now.getHours() + now.getMinutes() / 60) / 24;
     return {
       update: (dt) => w.update(dt),
       resize: () => w.resize(),
@@ -338,6 +385,7 @@ class App {
 
   private teardown(): void {
     cancelAnimationFrame(this.raf);
+    this.sfx.stopRecord();
     this.game?.save();
     this.renderer?.dispose();
     this.input?.dispose();
