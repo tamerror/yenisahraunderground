@@ -172,7 +172,11 @@ export class Game {
     this.proj = new Projection(area.center);
     this.net = new StreetNetwork(area, this.proj);
     this.boundary = area.boundary.map((p) => this.proj.toLocal(p));
-    this.pois = area.pois.map((p, index) => ({ index, name: p.n, type: p.t, ...this.proj.toLocal(p.p) }));
+    this.pois = area.pois.map((p, index) => {
+      const v = this.proj.toLocal(p.p);
+      const hit = this.net.nearest(v, 400);
+      return { index, name: p.n, type: p.t, ...v, reach: hit ? hit.d : Infinity };
+    });
     this.metroPois = this.pois.filter((p) => p.type === 'metro');
     this.progress = loadProgress(this.store, opts.saveId ?? area.name, this.net.samples.length);
 
@@ -704,10 +708,10 @@ export class Game {
   }
 
   private slowTick(): void {
-    // POI discovery
-    const r2 = this.config.poiRadius ** 2;
+    // POI discovery (places set back from the street, e.g. inside a mall, get a wider radius)
     for (const poi of this.pois) {
-      if ((poi.x - this.player.x) ** 2 + (poi.y - this.player.y) ** 2 > r2) continue;
+      const r = Math.max(this.config.poiRadius, Math.min(95, poi.reach + 12));
+      if ((poi.x - this.player.x) ** 2 + (poi.y - this.player.y) ** 2 > r * r) continue;
       if (this.progress.pois.includes(poi.index)) continue;
       this.progress.pois.push(poi.index);
       this.addScore(5);
@@ -716,7 +720,7 @@ export class Game {
     }
     if (!this.progress.metro) {
       for (const m of this.metroPois) {
-        if (Math.hypot(m.x - this.player.x, m.y - this.player.y) < 60) {
+        if (Math.hypot(m.x - this.player.x, m.y - this.player.y) < Math.max(60, Math.min(120, m.reach + 15))) {
           this.progress.metro = true;
           this.addScore(200);
           this.emit({ type: 'toast', kind: 'rare', emoji: 'Ⓜ️', text: `${m.name} metro istasyonu! Yeraltına indin: +200` });

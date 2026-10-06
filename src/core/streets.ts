@@ -423,6 +423,95 @@ export class StreetNetwork {
     return out;
   }
 
+  /**
+   * Shortest walkable route between two points (A* over the street graph).
+   * Returns the polyline from `from` to `to`, or null when either point is far from the network.
+   */
+  route(from: Vec2, to: Vec2): Vec2[] | null {
+    const a = this.nearest(from, 60);
+    const b = this.nearest(to, 80);
+    if (!a || !b) return null;
+    if (a.seg === b.seg) return [from, { x: a.x, y: a.y }, { x: b.x, y: b.y }, to];
+    const n = this.nodes.length;
+    const g = new Float64Array(n).fill(Infinity);
+    const prev = new Int32Array(n).fill(-1);
+    const closed = new Uint8Array(n);
+    const h = (i: number) => Math.hypot(this.nodes[i].x - b.x, this.nodes[i].y - b.y);
+    // tiny binary heap keyed by f = g + h
+    const heap: number[] = [];
+    const f = new Float64Array(n).fill(Infinity);
+    const push = (i: number) => {
+      heap.push(i);
+      let k = heap.length - 1;
+      while (k > 0) {
+        const p = (k - 1) >> 1;
+        if (f[heap[p]] <= f[heap[k]]) break;
+        [heap[p], heap[k]] = [heap[k], heap[p]];
+        k = p;
+      }
+    };
+    const pop = () => {
+      const top = heap[0];
+      const last = heap.pop()!;
+      if (heap.length) {
+        heap[0] = last;
+        let k = 0;
+        for (;;) {
+          const l = 2 * k + 1;
+          const r = l + 1;
+          let m = k;
+          if (l < heap.length && f[heap[l]] < f[heap[m]]) m = l;
+          if (r < heap.length && f[heap[r]] < f[heap[m]]) m = r;
+          if (m === k) break;
+          [heap[m], heap[k]] = [heap[k], heap[m]];
+          k = m;
+        }
+      }
+      return top;
+    };
+    const startCost = (node: number) => Math.hypot(this.nodes[node].x - a.x, this.nodes[node].y - a.y);
+    for (const s0 of [a.seg.a, a.seg.b]) {
+      g[s0] = startCost(s0);
+      f[s0] = g[s0] + h(s0);
+      prev[s0] = -2;
+      push(s0);
+    }
+    const goal = new Map<number, number>([
+      [b.seg.a, Math.hypot(this.nodes[b.seg.a].x - b.x, this.nodes[b.seg.a].y - b.y)],
+      [b.seg.b, Math.hypot(this.nodes[b.seg.b].x - b.x, this.nodes[b.seg.b].y - b.y)],
+    ]);
+    let best = -1;
+    let bestCost = Infinity;
+    while (heap.length) {
+      const u = pop();
+      if (closed[u]) continue;
+      closed[u] = 1;
+      if (g[u] >= bestCost) break;
+      const gc = goal.get(u);
+      if (gc !== undefined && g[u] + gc < bestCost) {
+        bestCost = g[u] + gc;
+        best = u;
+      }
+      for (const si of this.nodes[u].segs) {
+        const seg = this.segs[si];
+        if (!seg.main) continue;
+        const v = seg.a === u ? seg.b : seg.a;
+        const ng = g[u] + seg.len;
+        if (ng < g[v]) {
+          g[v] = ng;
+          f[v] = ng + h(v);
+          prev[v] = u;
+          push(v);
+        }
+      }
+    }
+    if (best < 0) return null;
+    const path: Vec2[] = [];
+    for (let u = best; u >= 0; u = prev[u]) path.push({ x: this.nodes[u].x, y: this.nodes[u].y });
+    path.reverse();
+    return [from, { x: a.x, y: a.y }, ...path, { x: b.x, y: b.y }, to];
+  }
+
   /** Compass heading of a segment, flipped to be closest to `heading`. */
   alignedHeading(seg: Segment, heading: number): number {
     const h = Math.atan2(seg.bx - seg.ax, seg.by - seg.ay);

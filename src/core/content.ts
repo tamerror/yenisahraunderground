@@ -68,12 +68,14 @@ export const CATS: CatDef[] = [
 
 export const LEVELS: { at: number; title: string }[] = [
   { at: 0, title: 'Yabancı' },
-  { at: 250, title: 'Misafir' },
-  { at: 750, title: 'Komşu' },
-  { at: 2000, title: 'Mahalleli' },
-  { at: 4500, title: 'Esnaf' },
-  { at: 8000, title: 'Muhtar' },
+  { at: 300, title: 'Misafir' },
+  { at: 1000, title: 'Komşu' },
+  { at: 2500, title: 'Mahalleli' },
+  { at: 5000, title: 'Esnaf' },
+  { at: 9000, title: 'Muhtar' },
   { at: 15000, title: 'Mahalle Efsanesi' },
+  { at: 25000, title: 'Semt Kahramanı' },
+  { at: 40000, title: 'Underground Efsanesi' },
 ];
 
 export function levelFor(score: number): { index: number; title: string; next: number | null; prev: number } {

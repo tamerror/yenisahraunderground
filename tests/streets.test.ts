@@ -74,3 +74,33 @@ describe('StreetNetwork (Yenisahra bundled data)', () => {
     expect(net.nearest({ x: 0, y: 0 }, 150)).not.toBeNull();
   });
 });
+
+describe('routing', () => {
+  const area = plusArea();
+  const net = new StreetNetwork(area, new Projection(area.center));
+  it('routes around the corner through the junction', () => {
+    const r = net.route({ x: 80, y: 0 }, { x: 0, y: 80 })!;
+    expect(r).not.toBeNull();
+    expect(r.some((p) => Math.hypot(p.x, p.y) < 0.5)).toBe(true);
+    let len = 0;
+    for (let i = 1; i < r.length; i++) len += Math.hypot(r[i].x - r[i - 1].x, r[i].y - r[i - 1].y);
+    expect(len).toBeCloseTo(160, 0);
+  });
+  it('same segment is a straight line', () => {
+    expect(net.route({ x: 10, y: 0 }, { x: 60, y: 0 })!.length).toBe(4);
+  });
+  it('returns null far away from streets', () => {
+    expect(net.route({ x: 10, y: 0 }, { x: 5000, y: 5000 })).toBeNull();
+  });
+  it('routes across Yenisahra quickly', () => {
+    const a = loadYenisahra();
+    const n = new StreetNetwork(a, new Projection(a.center));
+    const rng = mulberry32(4);
+    const t0 = performance.now();
+    for (let i = 0; i < 20; i++) {
+      const r = n.route(n.randomPoint(rng), n.randomPoint(rng));
+      expect(r).not.toBeNull();
+    }
+    expect((performance.now() - t0) / 20).toBeLessThan(20);
+  });
+});

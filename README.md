@@ -52,7 +52,7 @@ Dokunmatik ekranlarda sol altta sanal joystick ve 🏃 koşma düğmesi çıkar.
 - **Güçlendirmeler:** 🧲 mıknatıs (eşyaları çeker), 🛴 scooter (hız), 🧭 pusula (en yakın plağı gösterir).
 - **Görevler:** her an 3 aktif görev vardır (eşya topla, sokağı baştan sona yürü, mekâna uğra, kedi besle, kombo yap,
   mahallenin %X'ini keşfet). Hedefler 3D'de renkli ışık sütunu, haritada elmas olarak görünür.
-- **Seviyeler ve rozetler:** Yabancı → Misafir → Komşu → Mahalleli → Esnaf → Muhtar → Mahalle Efsanesi; 25 rozet.
+- **Seviyeler ve rozetler:** Yabancı → Misafir → Komşu → Mahalleli → Esnaf → Muhtar → Mahalle Efsanesi → Semt Kahramanı → Underground Efsanesi; 25 rozet.
 - İlerleme her mahalle için ayrı olarak tarayıcıya (localStorage) kaydedilir.
 
 ## Başka bir semt

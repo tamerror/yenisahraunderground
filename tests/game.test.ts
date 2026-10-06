@@ -19,7 +19,7 @@ describe('content helpers', () => {
   });
   it('levels', () => {
     expect(levelFor(0).title).toBe('Yabancı');
-    expect(levelFor(800).title).toBe('Komşu');
+    expect(levelFor(1200).title).toBe('Komşu');
     expect(levelFor(1e9).next).toBeNull();
   });
 });

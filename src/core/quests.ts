@@ -25,7 +25,12 @@ export interface GamePoi {
   type: PoiType;
   x: number;
   y: number;
+  /** Distance from the walkable network (metres). */
+  reach: number;
 }
+
+/** POIs further than this from any walkable street never become visit targets. */
+export const MAX_VISIT_REACH = 80;
 
 export interface QuestContext {
   rng: Rng;
@@ -103,7 +108,7 @@ function makeStreet(ctx: QuestContext, taken: Set<string | number | null>): Ques
 function makeVisit(ctx: QuestContext, taken: Set<string | number | null>): QuestState | null {
   const known = new Set(ctx.progress.pois);
   const cands = ctx.pois
-    .filter((p) => !known.has(p.index) && !taken.has(p.index) && p.type !== 'bus' && p.type !== 'shop')
+    .filter((p) => !known.has(p.index) && !taken.has(p.index) && p.type !== 'bus' && p.type !== 'shop' && p.reach <= MAX_VISIT_REACH)
     .map((p) => ({ p, d: Math.hypot(p.x - ctx.player.x, p.y - ctx.player.y) }))
     .filter((c) => c.d > 80)
     .sort((a, b) => a.d - b.d)
