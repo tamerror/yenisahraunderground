@@ -124,7 +124,8 @@ describe('bundled area names', () => {
   it('normalises Turkish names', () => {
     expect(normalizeName('YENİSAHRA Mahallesi, Ataşehir')).toBe('yenisahra');
     expect(findBundled('Yenisahra mah.')?.slug).toBe('yenisahra');
-    expect(findBundled('Moda')).toBeNull();
+    expect(findBundled('Moda')?.slug).toBe('caferaga');
+    expect(findBundled('Bostancı')).toBeNull();
     expect(slugify('Kozyatağı, Kadıköy')).toBe('kozyatagi');
   });
 });
