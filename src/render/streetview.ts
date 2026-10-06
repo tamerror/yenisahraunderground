@@ -60,12 +60,15 @@ let loader: Promise<SvLib> | null = null;
 export function loadGoogleMaps(key: string): Promise<SvLib> {
   if (loader) return loader;
   loader = new Promise<SvLib>((resolve, reject) => {
+    let timer = 0;
     const fail = (msg: string) => {
+      clearTimeout(timer);
       loader = null;
       reject(new Error(msg));
     };
     window.gm_authFailure = () => fail('API anahtarı reddedildi (Maps JavaScript API etkin mi, faturalandırma açık mı?)');
     window.__ysuGmReady = async () => {
+      clearTimeout(timer);
       try {
         const g = window.google!.maps;
         resolve(g.importLibrary ? await g.importLibrary('streetView') : g);
@@ -78,7 +81,7 @@ export function loadGoogleMaps(key: string): Promise<SvLib> {
     s.async = true;
     s.onerror = () => fail('Google Maps yüklenemedi (internet bağlantısı?)');
     document.head.appendChild(s);
-    setTimeout(() => fail('Google Maps yanıt vermedi'), 20000);
+    timer = window.setTimeout(() => fail('Google Maps yanıt vermedi'), 20000);
   });
   return loader;
 }

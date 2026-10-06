@@ -184,7 +184,11 @@ export class Hud {
     t.className = `toast ${kind}`;
     t.innerHTML = `${emoji ? `<span class="t-emoji">${emoji}</span>` : ''}<span>${esc(text)}</span>`;
     box.prepend(t);
-    while (box.children.length > 4) box.lastElementChild!.remove();
+    // drop the oldest routine toast first so warnings and badges stay readable
+    while (box.children.length > 4) {
+      const kids = [...box.children].reverse();
+      (kids.find((k) => !k.classList.contains('warn') && !k.classList.contains('badge')) ?? kids[0]).remove();
+    }
     const life = kind === 'warn' ? 6000 : kind === 'badge' || kind === 'rare' ? 3800 : 2600;
     setTimeout(() => t.classList.add('out'), life);
     setTimeout(() => t.remove(), life + 500);
