@@ -50,11 +50,11 @@ const OSM_CACHE_DAYS = 30;
 type DayMode = 'auto' | 'day' | 'night';
 const DAY_LABELS: Record<DayMode, string> = { auto: 'Otomatik', day: 'Hep gündüz', night: 'Hep gece' };
 
-async function loadArea(semt: string, progress: (m: string) => void): Promise<{ area: AreaData; slug: string }> {
+async function loadArea(semt: string, progress: (m: string) => void): Promise<{ area: AreaData; slug: string; focus?: string }> {
   const bundled = findBundled(semt);
   if (bundled) {
     progress(`${bundled.name} haritası yükleniyor…`);
-    return { area: await loadBundled(bundled), slug: bundled.slug };
+    return { area: await loadBundled(bundled), slug: bundled.slug, focus: bundled.focus };
   }
   const slug = slugify(semt);
   const cacheKey = `ysu:osm:${slug}`;
@@ -185,10 +185,10 @@ class App {
   async start(settings: Settings): Promise<void> {
     this.setLoading('Yükleniyor…');
     try {
-      const { area, slug } = await loadArea(settings.semt, (m) => this.setLoading(m));
+      const { area, slug, focus } = await loadArea(settings.semt, (m) => this.setLoading(m));
       this.setLoading('Mahalle kuruluyor…');
       await new Promise((r) => setTimeout(r, 30));
-      const game = new Game(area, { store, saveId: slug, config: settings.mode === 'sv' ? CONFIG_SV : CONFIG_3D });
+      const game = new Game(area, { store, saveId: slug, focusStreet: focus, config: settings.mode === 'sv' ? CONFIG_SV : CONFIG_3D });
       this.game = game;
       $('menu').classList.add('hidden');
       this.root.classList.remove('hidden');
@@ -253,6 +253,8 @@ class App {
       } else {
         this.hud.toast(`${area.name} — iyi gezmeler!`, 'info', '👋');
       }
+      if (game.focus && !game.progress.focusDone)
+        this.hud.toast(`Başlangıç bölgesi: ${game.focus.name} ve çevresindeki ${game.focus.streets.length - 1} sokak. Hepsini yürü!`, 'quest', '🏘️');
       this.hud.toast(`Günün eşyası: ${game.dailyItem.name} — bugün iki kat puan!`, 'rare', game.dailyItem.emoji);
       (window as unknown as { __ysu: unknown }).__ysu = { game, app: this };
       this.lastT = performance.now();
@@ -332,6 +334,9 @@ class App {
           break;
         case 'street-done':
           this.sfx.street();
+          break;
+        case 'chapter':
+          this.sfx.level();
           break;
         case 'toast':
           if (e.kind === 'warn') this.sfx.meow();

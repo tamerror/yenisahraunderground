@@ -111,7 +111,8 @@ export type GameEvent =
   | { type: 'street-done'; name: string; points: number }
   | { type: 'poi'; poi: GamePoi }
   | { type: 'powerup'; id: string }
-  | { type: 'explore'; points: number };
+  | { type: 'explore'; points: number }
+  | { type: 'chapter'; name: string; points: number };
 
 export interface GameOptions {
   config?: GameConfig;
@@ -122,7 +123,28 @@ export interface GameOptions {
   saveId?: string;
   /** Date used to pick the item of the day (defaults to today). */
   date?: Date;
+  /** Opening street: the game starts here and its neighbourhood is the first chapter. */
+  focusStreet?: string;
 }
+
+export interface FocusRegion {
+  /** The focus street itself. */
+  name: string;
+  /** Focus street first, then the named streets that cross it. */
+  streets: string[];
+  /** Walkable sample ids of the chapter (the focus street plus the nearby parts of its cross streets). */
+  samples: number[];
+  /** Chapter sample ids per street. */
+  byStreet: Map<string, number[]>;
+  center: Vec2;
+}
+
+/** Parts of cross streets further than this from the focus street are not part of the opening chapter. */
+export const FOCUS_REACH = 150;
+/** Share of a street's chapter samples that must be walked for it to count. */
+const FOCUS_SHARE = 0.9;
+
+const FOCUS_BONUS = 500;
 
 /** Common and medium collectibles can be the "item of the day" (double points). */
 export function dailyItemFor(date: Date): ItemDef {
@@ -148,6 +170,7 @@ export class Game {
   time = 0;
   currentStreet: string | null = null;
   readonly dailyItem: ItemDef;
+  readonly focus: FocusRegion | null;
   /** Route to the tracked quest's target (refreshed twice a second). */
   guide: { questId: number; index: number; path: Vec2[] } | null = null;
   /** Quest the player chose to follow; defaults to the first quest with a target. */
@@ -190,6 +213,7 @@ export class Game {
       if (s && isVisited(this.progress, i)) this.streetVisits.set(s, (this.streetVisits.get(s) ?? 0) + 1);
     }
 
+    this.focus = opts.focusStreet ? this.buildFocus(opts.focusStreet) : null;
     this.targetItems = Math.round(Math.min(900, Math.max(30, this.net.totalLength / this.config.itemSpacing)));
     this.placeStart();
     this.placeRecords();
@@ -222,6 +246,24 @@ export class Game {
       this.player.heading = saved.h;
       return;
     }
+    if (this.focus) {
+      // new game: stand at the start of the focus street, looking along it
+      const st = this.net.streets.get(this.focus.name)!;
+      const seg = this.net.segs.filter((sg) => sg.main && sg.name === this.focus!.name && this.net.blocks[sg.block] && st.blocks.includes(sg.block));
+      const ends = seg.filter((sg) => [sg.a, sg.b].some((n) => this.net.nodes[n].segs.every((o) => this.net.segs[o].name !== this.focus!.name || o === sg.id)));
+      const first = ends[0] ?? seg[0];
+      if (first) {
+        const lonely = this.net.nodes[first.a].segs.filter((o) => this.net.segs[o].name === this.focus!.name).length === 1;
+        const [from, to] = lonely ? [first.a, first.b] : [first.b, first.a];
+        const A = this.net.nodes[from];
+        const B = this.net.nodes[to];
+        const k = Math.min(6, first.len / 2) / (first.len || 1);
+        this.player.x = A.x + (B.x - A.x) * k;
+        this.player.y = A.y + (B.y - A.y) * k;
+        this.player.heading = Math.atan2(B.x - A.x, B.y - A.y);
+        return;
+      }
+    }
     // start on a decent street close to the centre of the neighbourhood
     let best: { x: number; y: number; h: number; score: number } | null = null;
     for (const seg of this.net.segs) {
@@ -252,6 +294,60 @@ export class Game {
     return out;
   }
 
+  private buildFocus(name: string): FocusRegion | null {
+    const st = this.net.streets.get(name);
+    if (!st) return null;
+    const own = this.net.segs.filter((sg) => sg.main && sg.name === name);
+    const nodes = new Set(own.flatMap((sg) => [sg.a, sg.b]));
+    const cross = new Set<string>();
+    for (const sg of this.net.segs)
+      if (sg.main && sg.name && sg.name !== name && (nodes.has(sg.a) || nodes.has(sg.b)) && this.net.streets.has(sg.name)) cross.add(sg.name);
+    const streets = [name, ...[...cross].sort((a, b) => a.localeCompare(b, 'tr'))];
+    const ownSamples = st.blocks.flatMap((b) => this.net.blocks[b].samples).map((id) => this.net.samples[id]);
+    const near = (id: number) => {
+      const s0 = this.net.samples[id];
+      return ownSamples.some((o) => Math.hypot(o.x - s0.x, o.y - s0.y) <= FOCUS_REACH);
+    };
+    const byStreet = new Map<string, number[]>();
+    const samples: number[] = [];
+    for (const n of streets) {
+      const ids = this.net.streets.get(n)!.blocks.flatMap((b) => this.net.blocks[b].samples).filter((id) => n === name || near(id));
+      byStreet.set(n, ids);
+      samples.push(...ids);
+    }
+    let cx = 0;
+    let cy = 0;
+    for (const sg of own) {
+      cx += (sg.ax + sg.bx) / 2;
+      cy += (sg.ay + sg.by) / 2;
+    }
+    return { name, streets, samples, byStreet, center: { x: cx / own.length, y: cy / own.length } };
+  }
+
+  /** Walked / required chapter samples for one street of the opening chapter. */
+  focusStreetProgress(name: string): { seen: number; goal: number } {
+    const ids = this.focus?.byStreet.get(name) ?? [];
+    let seen = 0;
+    for (const id of ids) if (isVisited(this.progress, id)) seen++;
+    return { seen, goal: Math.ceil(ids.length * FOCUS_SHARE) };
+  }
+
+  /** Streets of the opening chapter that are not walked enough yet. */
+  focusRemaining(): string[] {
+    if (!this.focus) return [];
+    return this.focus.streets.filter((n) => {
+      const f = this.focusStreetProgress(n);
+      return f.seen < f.goal;
+    });
+  }
+
+  private checkFocus(): void {
+    if (!this.focus || this.progress.focusDone || this.focusRemaining().length) return;
+    this.progress.focusDone = true;
+    this.addScore(FOCUS_BONUS);
+    this.emit({ type: 'chapter', name: this.focus.name, points: FOCUS_BONUS });
+  }
+
   private placeRecords(): void {
     const rng = mulberry32(hashString(`${this.area.name}:records`));
     const cands: Vec2[] = this.net.deadEnds.map((n) => {
@@ -263,7 +359,19 @@ export class Game {
       return { x: node.x + (ox - node.x) * k, y: node.y + (oy - node.y) * k };
     });
     while (cands.length < RECORD_COUNT * 2) cands.push(this.net.randomPoint(rng));
-    this.recordSpots.push(...this.spread(cands, RECORD_COUNT, rng));
+    let spots = this.spread(cands, RECORD_COUNT, rng);
+    if (this.focus) {
+      // one record is always hidden in the opening neighbourhood
+      const c = this.focus.center;
+      const d = (p: Vec2) => Math.hypot(p.x - c.x, p.y - c.y);
+      const local = cands.filter((p) => d(p) < 260).sort((a, b) => d(a) - d(b));
+      const pick0 = local.find((p) => d(p) > 60) ?? local[0];
+      if (pick0 && !spots.some((p) => d(p) < 260)) {
+        spots.sort((a, b) => d(a) - d(b));
+        spots = [pick0, ...spots.slice(1)];
+      }
+    }
+    this.recordSpots.push(...spots);
     this.recordSpots.forEach((p, i) => {
       if (!this.progress.records.includes(i)) this.addItem(ITEM_BY_ID.plak, p.x, p.y, i);
     });
@@ -276,7 +384,13 @@ export class Game {
       const p = this.net.randomPoint(rng, 0.6);
       if (p.seg.kind !== 'primary' && p.seg.kind !== 'secondary') cands.push(p);
     }
-    const spots = this.spread(cands, CATS.length, rng);
+    let spots = this.spread(cands, CATS.length, rng);
+    if (this.focus && this.focus.samples.length) {
+      const fs = this.focus.samples.map((id) => this.net.samples[id]);
+      const a = fs[Math.floor(fs.length * 0.3)];
+      const b = fs[Math.floor(fs.length * 0.8)];
+      spots = [a, b, ...spots.slice(0, CATS.length - 2)].map((p) => ({ x: p.x, y: p.y }));
+    }
     spots.forEach((p, i) => {
       const def = CATS[i];
       this.cats.push({
@@ -321,6 +435,11 @@ export class Game {
           const hit = this.net.nearest({ x: poi.x + Math.cos(a) * r, y: poi.y + Math.sin(a) * r }, 60);
           if (hit) p = this.net.pointOnSegment(hit.seg, hit.t, (this.rng() * 2 - 1) * 0.4 * hit.seg.hw);
         }
+      }
+      if (!p && this.focus && !this.progress.focusDone && this.focus.samples.length && this.rng() < 0.3) {
+        const smp = this.net.samples[pick(this.rng, this.focus.samples)];
+        const hit = this.net.nearest(smp, 5);
+        if (hit) p = this.net.pointOnSegment(hit.seg, hit.t, (this.rng() * 2 - 1) * 0.4 * hit.seg.hw);
       }
       if (!p) p = this.net.randomPoint(this.rng, 0.45);
       if (Math.hypot(p.x - this.player.x, p.y - this.player.y) < minDist) continue;
@@ -417,8 +536,9 @@ export class Game {
       if (!st) return null;
       let best: Vec2 | null = null;
       let bd = Infinity;
-      for (const b of st.blocks)
-        for (const sid of this.net.blocks[b].samples) {
+      const ids = q.zone === 'focus' ? [this.focus?.byStreet.get(String(q.target)) ?? []] : st.blocks.map((b) => this.net.blocks[b].samples);
+      for (const list of ids)
+        for (const sid of list) {
           if (isVisited(this.progress, sid)) continue;
           const s = this.net.samples[sid];
           const d = Math.hypot(s.x - this.player.x, s.y - this.player.y);
@@ -442,6 +562,9 @@ export class Game {
       streetVisited: (n) => this.streetVisited(n),
       explorePct: () => this.explorePct,
       catCount: this.cats.length,
+      focusStreets: this.progress.focusDone ? [] : this.focusRemaining(),
+      focusProgress: (n) => this.focusStreetProgress(n),
+      focusName: this.focus?.name,
     };
   }
 
@@ -602,6 +725,7 @@ export class Game {
         this.emit({ type: 'street-done', name: st, points: pts });
       }
     }
+    if (fresh && this.focus && !this.progress.focusDone) this.checkFocus();
     if (fresh) {
       this.addScore(fresh);
       this.emit({ type: 'explore', points: fresh });

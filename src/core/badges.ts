@@ -22,6 +22,7 @@ export const BADGES: BadgeDef[] = [
   { id: 'kedibabasi', name: 'Mahallenin Kedi Babası', emoji: '🐾', desc: `${CATS.length} kedinin hepsini besle.`, check: (p) => fedCount(p) >= CATS.length },
   { id: 'plak1', name: 'Plak Avcısı', emoji: '💿', desc: 'İlk Underground plağını bul.', check: (p) => p.records.length >= 1 },
   { id: 'underground', name: 'Yenisahra Underground', emoji: '🎧', desc: `${RECORD_TITLES.length} plağın hepsini bul.`, check: (p) => p.records.length >= RECORD_TITLES.length },
+  { id: 'bolge', name: 'Atalay\'ın Müdavimi', emoji: '🏘️', desc: 'Başlangıç caddesini ve onu kesen bütün sokakları baştan sona yürü.', check: (p) => p.focusDone },
   { id: 'metro', name: 'Yeraltına İniş', emoji: 'Ⓜ️', desc: 'Metro istasyonuna ulaş.', check: (p) => p.metro },
   { id: 'kasif10', name: 'Meraklı', emoji: '🔭', desc: 'Mahallenin %10\'unu keşfet.', check: (_p, e) => e >= 10 },
   { id: 'kasif25', name: 'Kâşif', emoji: '🗺️', desc: 'Mahallenin %25\'ini keşfet.', check: (_p, e) => e >= 25 },

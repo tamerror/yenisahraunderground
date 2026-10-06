@@ -51,6 +51,7 @@ export class Hud {
       <div class="panel stats">
         <div class="score"><span class="score-val" data-testid="score">0</span><small>puan</small></div>
         <div class="level"><span class="level-title"></span><div class="bar"><i class="level-bar"></i></div></div>
+        <div class="chapter hidden" title="Tıkla: sıradaki sokağa yol tarifi"><span>🏘️ <span class="chapter-name"></span> <b class="chapter-val"></b></span><div class="bar"><i class="chapter-bar"></i></div></div>
         <div class="explore"><span>🗺️ Keşif <b class="explore-val">0%</b></span><div class="bar"><i class="explore-bar"></i></div></div>
         <div class="combo hidden"><b class="combo-val">x2</b> KOMBO<div class="bar"><i class="combo-bar"></i></div></div>
       </div>
@@ -91,6 +92,11 @@ export class Hud {
         b.blur();
       }),
     );
+    this.$('.chapter').addEventListener('click', () => {
+      const next = game.focusRemaining()[0];
+      const q = game.progress.quests.find((x) => x.zone === 'focus' && x.target === next) ?? game.progress.quests.find((x) => x.zone === 'focus');
+      if (q) game.track(q.id);
+    });
     this.$('.quest-list').addEventListener('click', (e) => {
       const li = (e.target as HTMLElement).closest('li[data-q]') as HTMLElement | null;
       if (li) game.track(Number(li.dataset.q));
@@ -121,6 +127,19 @@ export class Hud {
     this.set('lt', '.level-title', `${lv.title}${lv.next ? ` → ${lv.next.toLocaleString('tr-TR')}` : ''}`);
     const lp = lv.next ? (p.score - lv.prev) / (lv.next - lv.prev) : 1;
     this.$('.level-bar').style.width = `${Math.min(100, lp * 100).toFixed(1)}%`;
+    const chapter = this.$('.chapter');
+    const open = !!g.focus && !p.focusDone;
+    chapter.classList.toggle('hidden', !open);
+    if (open && g.focus) {
+      const total = g.focus.streets.length;
+      const done = total - g.focusRemaining().length;
+      let seen = 0;
+      for (const id of g.focus.samples) if (p.visited[id >> 3] & (1 << (id & 7))) seen++;
+      seen = Math.min(seen / 0.9, g.focus.samples.length);
+      this.set('chn', '.chapter-name', `${g.focus.name.replace(/ Caddesi$/, '')} bölgesi`);
+      this.set('chv', '.chapter-val', `${done}/${total} sokak`);
+      this.$('.chapter-bar').style.width = `${((seen / Math.max(1, g.focus.samples.length)) * 100).toFixed(1)}%`;
+    }
     const ex = g.explorePct;
     this.set('ex', '.explore-val', `${ex.toFixed(1)}%`);
     this.$('.explore-bar').style.width = `${ex.toFixed(2)}%`;
@@ -219,6 +238,9 @@ export class Hud {
         break;
       case 'quest-done':
         this.toast(`Görev tamam: ${e.quest.title} +${e.quest.reward}`, 'quest', '✅');
+        break;
+      case 'chapter':
+        this.toast(`${e.name} ve çevresi tamamlandı! +${e.points}. Artık bütün ${this.game.area.name} senin.`, 'badge', '🏘️');
         break;
       case 'street-done':
         this.toast(`${e.name} tamamen keşfedildi! +${e.points}`, 'good', '🏁');

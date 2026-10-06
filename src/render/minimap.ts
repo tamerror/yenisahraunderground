@@ -76,6 +76,20 @@ export class MapRenderer {
       ctx.lineTo(s.bx, s.by);
       ctx.stroke();
     }
+    // the opening chapter's streets glow gold until they are walked
+    if (g.focus && !g.progress.focusDone) {
+      ctx.fillStyle = 'rgba(255, 196, 64, 0.75)';
+      ctx.beginPath();
+      const fr = Math.max(6.5, 3 / scale);
+      for (const id of g.focus.samples) {
+        if (isVisited(g.progress, id)) continue;
+        const smp = g.net.samples[id];
+        if (Math.abs(smp.x - v.cx) > r || Math.abs(smp.y - v.cy) > r) continue;
+        ctx.moveTo(smp.x + fr, smp.y);
+        ctx.arc(smp.x, smp.y, fr, 0, Math.PI * 2);
+      }
+      ctx.fill();
+    }
     // explored samples
     ctx.fillStyle = '#7ef0c5';
     ctx.beginPath();
@@ -250,7 +264,7 @@ export class BigMap {
     this.el.appendChild(this.canvas);
     const legend = document.createElement('div');
     legend.className = 'bigmap-legend';
-    legend.innerHTML = `<b>${game.area.fullName}</b><span><i style="background:#7ef0c5"></i>keşfedildi</span><span><i style="background:rgba(150,160,190,.6)"></i>keşfedilmedi</span><span><i style="background:#ffb74d"></i>kedi</span><span><i style="background:#ff80ab"></i>dost kedi</span><span><i class="dia"></i>görev</span><span class="muted">M / Esc: kapat · sürükle & tekerlek: gezin</span>`;
+    legend.innerHTML = `<b>${game.area.fullName}</b><span><i style="background:#7ef0c5"></i>keşfedildi</span><span><i style="background:rgba(150,160,190,.6)"></i>keşfedilmedi</span>${game.focus && !game.progress.focusDone ? `<span><i style="background:rgba(255,196,64,.9)"></i>${game.focus.name.replace(/ Caddesi$/, '')} bölgesi</span>` : ''}<span><i style="background:#ffb74d"></i>kedi</span><span><i style="background:#ff80ab"></i>dost kedi</span><span><i class="dia"></i>görev</span><span class="muted">M / Esc: kapat · sürükle & tekerlek: gezin</span>`;
     this.el.appendChild(legend);
     parent.appendChild(this.el);
     this.ctx = this.canvas.getContext('2d')!;

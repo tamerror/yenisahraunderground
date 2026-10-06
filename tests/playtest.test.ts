@@ -17,13 +17,13 @@ class Bot {
   private lastPos = { x: 0, y: 0 };
   private stillTime = 0;
 
-  constructor(private readonly g: Game, private readonly rng: () => number) {}
+  constructor(private readonly g: Game, private readonly rng: () => number, private readonly questBias = 0.35) {}
 
   private pickTarget(): Vec2 | null {
     const g = this.g;
     const p = g.player;
     // quest targets now and then, otherwise the nearest interesting thing
-    if (this.rng() < 0.35) {
+    if (this.rng() < this.questBias) {
       for (const q of g.progress.quests) {
         const t = g.questTargetPoint(q);
         if (t) return t;
@@ -135,6 +135,22 @@ describe('autopilot playtest (Yenisahra)', () => {
     expect(p.score).toBeGreaterThan(800);
     expect(p.questsDone).toBeGreaterThanOrEqual(3);
     expect(summary.collected).toBeGreaterThan(40);
+    expect(bot.stuck).toBeLessThan(4);
+  }, 60_000);
+
+  it('the Atalay opening chapter can be finished by following its quests', async () => {
+    const g = new Game(loadYenisahra(), { rng: mulberry32(31), config: CONFIG_3D, focusStreet: 'Atalay Caddesi', date: new Date(2026, 9, 6) });
+    const bot = new Bot(g, mulberry32(4), 0.8);
+    const dt = 1 / 20;
+    let doneAt = -1;
+    for (let t = 0; t < 1200 && doneAt < 0; t += dt) {
+      g.update(dt, bot.input(dt));
+      if (g.progress.focusDone) doneAt = t;
+    }
+    if (process.env.PLAYTEST_OUT)
+      (await import('node:fs')).writeFileSync(process.env.PLAYTEST_OUT + '.focus', JSON.stringify({ doneAt, remaining: g.focusRemaining(), score: g.progress.score, stuck: bot.stuck, quests: g.progress.quests.map((q) => [q.type, q.target, q.progress, q.goal]), sutcu: g.streetVisited('Sütçü Yolu Caddesi'), sutcuPct: g.streetPct('Sütçü Yolu Caddesi') }));
+    expect(g.focusRemaining()).toEqual([]);
+    expect(doneAt).toBeGreaterThan(0);
     expect(bot.stuck).toBeLessThan(4);
   }, 60_000);
 });

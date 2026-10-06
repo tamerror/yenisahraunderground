@@ -40,6 +40,15 @@ Dokunmatik ekranlarda sol altta sanal joystick ve 🏃 koşma düğmesi çıkar.
 
 ## Oyun mekaniği
 
+- **Başlangıç bölgesi — Atalay Caddesi:** Yenisahra'da yeni oyun Atalay Caddesi'nde başlar. İlk bölüm, Atalay'ı ve onu
+  kesen cadde/sokakların Atalay'a yakın (150 m) kısımlarını yürümektir: Fatih Caddesi, Sütçü Yolu Caddesi, Alaca, Erdaş,
+  Figen, Gamlı, Melda ve Özcanlar sokakları. Bölge haritada altın rengiyle işaretlidir; HUD'da "Atalay bölgesi x/9 sokak"
+  yazar (tıklayınca sıradaki sokağa yol tarifi açılır). Bölüm açıkken görevlerden biri hep bu sokaklardan gelir, bölgede
+  daha çok eşya çıkar, iki kedi orada yaşar ve plaklardan biri Atalay'ın yakınında saklıdır. Bölüm bitince +500 puan ve
+  "Atalay'ın Müdavimi" rozeti; oyun tüm Yenisahra'da serbest dolaşmayla sürer.
+- **Sokak dokusu:** kavşaklarda İstanbul'un mavi sokak tabelaları (ör. "ATALAY CD." / "YENİSAHRA MAH."), sokak kenarında
+  park etmiş arabalar, dükkânların önünde tenteler.
+
 - **Eşyalar** sokaklara yayılır ve sen topladıkça uzak yerlerde yeniden belirir. Gerçek mekânlara göre dağılırlar:
   fırınların çevresinde simit, kafelerin önünde çay, durakların yakınında İstanbulkart, marketlerin önünde lokum ve kedi maması.
 - **Kombo:** 4,5 saniye içinde art arda toplanan her eşya çarpanı artırır (x2 → x5).

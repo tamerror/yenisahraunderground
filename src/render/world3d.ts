@@ -14,6 +14,7 @@ import {
 } from './city';
 import { createCat, createCharacter, heartSprite, itemGeometry, labelSprite, lampGeometry, treeGeometry, type CatModel } from './models';
 import { QUEST_COLORS } from './minimap';
+import { buildAwnings, buildParkedCars, StreetSigns } from './furniture';
 
 export type ViewMode = 'third' | 'first' | 'top';
 
@@ -50,6 +51,7 @@ export class World3D {
   private readonly questBeams: THREE.Mesh[] = [];
   private readonly compassArrow: THREE.Mesh;
   private readonly crumbs: THREE.InstancedMesh;
+  private signs!: StreetSigns;
   private readonly crumbMat = new THREE.MeshBasicMaterial({ color: '#ffd54f', transparent: true, opacity: 0.8, depthWrite: false });
   private readonly magnetRing: THREE.Mesh;
   private readonly lampHeadMat = new THREE.MeshBasicMaterial({ color: '#888' });
@@ -202,6 +204,11 @@ export class World3D {
       heads.setMatrixAt(i, this.tmpM);
     });
     this.scene.add(poles, heads);
+
+    const focus = g.focus && !g.progress.focusDone ? new Set(g.focus.streets) : null;
+    this.scene.add(buildParkedCars(g.net, bidx, g.area.name, focus));
+    this.scene.add(buildAwnings(g));
+    this.signs = new StreetSigns(this.scene, g);
   }
 
   private buildItems(): void {
@@ -336,6 +343,7 @@ export class World3D {
     this.updateItems();
     this.updateCats(dt);
     this.updateLabels();
+    this.signs.update();
     this.updateHelpers();
 
     for (let i = this.bursts.length - 1; i >= 0; i--) {
@@ -504,7 +512,10 @@ export class World3D {
       beam.visible = !!t;
       if (t) {
         beam.position.set(t.x, 30, -t.y);
-        (beam.material as THREE.MeshBasicMaterial).opacity = 0.18 + Math.sin(this.time * 3 + i) * 0.06;
+        // fade out when close so the beam never blocks the street ahead
+        const near = THREE.MathUtils.smoothstep(Math.hypot(t.x - p.x, t.y - p.y), 15, 55);
+        (beam.material as THREE.MeshBasicMaterial).opacity = (0.18 + Math.sin(this.time * 3 + i) * 0.06) * near;
+        beam.visible = near > 0.01;
       }
     });
     for (let i = g.progress.quests.length; i < this.questBeams.length; i++) this.questBeams[i].visible = false;

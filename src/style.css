@@ -98,7 +98,9 @@ a { color: #9ecbff; }
 .score small { color: var(--muted); }
 .level { font-size: 13px; color: #e2e5f3; margin-top: 2px; }
 .level-title { font-weight: 700; }
-.explore { margin-top: 8px; font-size: 13px; }
+.explore, .chapter { margin-top: 8px; font-size: 13px; }
+.chapter { cursor: pointer; color: #ffe39a; }
+.chapter .bar > i { background: linear-gradient(90deg, #ffb300, var(--gold)); }
 .explore .bar > i { background: linear-gradient(90deg, #2dd4bf, var(--good)); }
 .combo { margin-top: 8px; font-weight: 800; color: var(--gold); font-size: 14px; letter-spacing: 1px; animation: pop 0.3s; }
 .combo b { font-size: 22px; }

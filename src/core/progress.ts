@@ -22,6 +22,8 @@ export interface Progress {
   playTime: number;
   bestCombo: number;
   metro: boolean;
+  /** Opening chapter (focus street and its cross streets) completed. */
+  focusDone: boolean;
   player: { x: number; y: number; h: number } | null;
 }
 
@@ -46,6 +48,7 @@ export function newProgress(area: string, sampleCount: number): Progress {
     playTime: 0,
     bestCombo: 1,
     metro: false,
+    focusDone: false,
     player: null,
   };
 }

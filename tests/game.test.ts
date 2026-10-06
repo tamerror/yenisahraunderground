@@ -269,3 +269,59 @@ describe('route guide', () => {
     expect(Math.hypot(end.x - poi.x, end.y - poi.y)).toBeLessThan(0.01);
   });
 });
+
+describe('opening chapter (Atalay Caddesi)', () => {
+  const make = (store = new MemoryStore()) => new Game(loadYenisahra(), { rng: mulberry32(5), store, focusStreet: 'Atalay Caddesi' });
+
+  it('starts a new game on Atalay Caddesi', () => {
+    const g = make();
+    expect(g.net.nearest(g.player, 10)?.seg.name).toBe('Atalay Caddesi');
+    expect(g.focus?.streets[0]).toBe('Atalay Caddesi');
+    expect(g.focus!.streets).toEqual(expect.arrayContaining(['Fatih Caddesi', 'Sütçü Yolu Caddesi', 'Figen Sokağı', 'Melda Sokağı']));
+  });
+
+  it('opens with a street quest for Atalay Caddesi and keeps one chapter quest', () => {
+    const g = make();
+    const sq = g.progress.quests.filter((q) => q.type === 'street');
+    expect(sq.map((q) => q.target)).toContain('Atalay Caddesi');
+  });
+
+  it('puts cats, a record and extra items around Atalay', () => {
+    const g = make();
+    const c = g.focus!.center;
+    const near = (p: { x: number; y: number }, r: number) => Math.hypot(p.x - c.x, p.y - c.y) < r;
+    expect(g.cats.filter((k) => near(k, 250)).length).toBeGreaterThanOrEqual(2);
+    expect(g.items.some((i) => i.def.id === 'plak' && near(i, 260))).toBe(true);
+    expect(g.items.filter((i) => near(i, 200)).length).toBeGreaterThan(15);
+  });
+
+  it('completing every chapter street gives the bonus once', () => {
+    const g = make();
+    const ev: GameEvent[] = [];
+    g.on((e) => ev.push(e));
+    for (const id of g.focus!.samples) {
+      const s = g.net.samples[id];
+      g.player.x = s.x;
+      g.player.y = s.y;
+      g.update(0.02, null);
+    }
+    expect(g.focusRemaining()).toEqual([]);
+    expect(g.progress.focusDone).toBe(true);
+    expect(ev.filter((e) => e.type === 'chapter').length).toBe(1);
+    for (let i = 0; i < 8; i++) g.update(0.1, null);
+    expect(g.progress.badges).toContain('bolge');
+  });
+
+  it('a saved game resumes where the player left, not at the start street', () => {
+    const store = new MemoryStore();
+    const g = make(store);
+    g.player.x = g.focus!.center.x;
+    g.player.y = g.focus!.center.y;
+    const s = g.net.snap({ x: 0, y: 0 });
+    g.player.x = s.x;
+    g.player.y = s.y;
+    g.save();
+    const g2 = make(store);
+    expect(Math.hypot(g2.player.x - s.x, g2.player.y - s.y)).toBeLessThan(0.01);
+  });
+});

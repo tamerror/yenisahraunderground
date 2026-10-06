@@ -17,6 +17,8 @@ export interface QuestState {
   title: string;
   /** Value of the tracked counter when the quest was issued (explore %). */
   base?: number;
+  /** Street quests of the opening chapter only count the part near the focus street. */
+  zone?: 'focus';
 }
 
 export interface GamePoi {
@@ -41,6 +43,10 @@ export interface QuestContext {
   streetVisited(name: string): number;
   explorePct(): number;
   catCount: number;
+  /** Unfinished streets of the opening chapter; street quests pick these first. */
+  focusStreets?: string[];
+  focusProgress?: (name: string) => { seen: number; goal: number };
+  focusName?: string;
 }
 
 export const ACTIVE_QUESTS = 3;
@@ -80,6 +86,24 @@ function makeStreet(ctx: QuestContext, taken: Set<string | number | null>): Ques
   const cands = [...ctx.net.streets.values()].filter(
     (s) => !done.has(s.name) && !taken.has(s.name) && s.length >= 60 && s.length <= 900 && s.sampleCount >= 4,
   );
+  // opening-chapter streets are always eligible, whatever their length
+  const focus = (ctx.focusStreets ?? []).filter((n) => !taken.has(n) && ctx.net.streets.has(n));
+  if (focus.length && ctx.focusProgress) {
+    const name = focus[0];
+    const fp = ctx.focusProgress(name);
+    const whole = ctx.net.streets.get(name)!;
+    const partial = fp.goal < Math.ceil(whole.sampleCount * 0.9);
+    return {
+      id: nextQuestId++,
+      type: 'street',
+      zone: 'focus',
+      target: name,
+      goal: fp.goal,
+      progress: Math.min(fp.goal, fp.seen),
+      reward: Math.round((40 + (fp.goal * 10) / 4) / 5) * 5,
+      title: partial ? `${streetLabel(name)} (${(ctx.focusName ?? '').replace(/ (Caddesi|Sokağı)$/, '')} tarafı) boyunca yürü 🚶` : `${streetLabel(name)} boyunca yürü 🚶`,
+    };
+  }
   if (!cands.length) return null;
   // prefer streets close to the player
   const distTo = (name: string) => {
@@ -173,6 +197,11 @@ export function generateQuest(ctx: QuestContext): QuestState {
     { t: 'combo', w: 1 },
     { t: 'explore', w: 1 },
   ];
+  // while the opening chapter is open, always keep one street quest from it
+  if (ctx.focusStreets?.length && !types.has('street')) {
+    const q = makeStreet(ctx, taken);
+    if (q) return q;
+  }
   for (let attempt = 0; attempt < 12; attempt++) {
     const t = weightedPick(ctx.rng, options, (o) => (types.has(o.t) && attempt < 8 ? 0 : o.w)).t;
     let q: QuestState | null = null;
@@ -223,7 +252,8 @@ export function advanceQuests(ctx: QuestContext, sig: QuestSignal): QuestState[]
         if (sig.kind === 'visit' && sig.poi === q.target) q.progress = 1;
         break;
       case 'street':
-        if (sig.kind === 'tick') q.progress = Math.min(q.goal, ctx.streetVisited(String(q.target)));
+        if (sig.kind === 'tick')
+          q.progress = Math.min(q.goal, q.zone === 'focus' && ctx.focusProgress ? ctx.focusProgress(String(q.target)).seen : ctx.streetVisited(String(q.target)));
         break;
       case 'explore':
         if (sig.kind === 'tick') q.progress = Math.floor(ctx.explorePct());
