@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#151a2d" />
+    <title>Yenisahra Underground</title>
+    <meta name="description" content="Gerçek mahalle sokaklarında gez, simit, çay, plak topla, sokak kedilerini besle. Tarayıcıda çalışan keşif oyunu." />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💿</text></svg>" />
+  </head>
+  <body>
+    <div id="game-root"></div>
+    <div id="menu" class="menu">
+      <div class="menu-card">
+        <div class="logo"><span class="logo-disc">💿</span><h1>Yenisahra<br /><em>Underground</em></h1></div>
+        <p class="tagline">Gerçek sokaklar. Simit, çay, kayıp plaklar ve mahallenin kedileri.</p>
+        <form id="start-form" autocomplete="off">
+          <label class="field">
+            <span>Semt / mahalle</span>
+            <input id="semt" name="semt" list="semt-list" value="Yenisahra" required maxlength="80" />
+            <datalist id="semt-list"></datalist>
+            <small id="semt-hint" class="hint">Hazır harita: anında açılır. Başka bir semt yazarsan OpenStreetMap'ten indirilir.</small>
+          </label>
+          <fieldset class="modes">
+            <legend>Görünüm</legend>
+            <label class="mode"><input type="radio" name="mode" value="3d" checked /><span><b>🏙️ 3D Mahalle</b><small>Anahtarsız. Gerçek sokak ve bina verisinden 3D şehir.</small></span></label>
+            <label class="mode"><input type="radio" name="mode" value="sv" /><span><b>📷 Google Street View</b><small>Gerçek sokak fotoğrafları. Google Maps API anahtarı gerekir.</small></span></label>
+          </fieldset>
+          <label class="field key-field hidden">
+            <span>Google Maps JavaScript API anahtarı</span>
+            <input id="apikey" name="apikey" type="password" placeholder="AIza..." spellcheck="false" />
+            <small class="hint">Anahtar yalnızca bu tarayıcıda saklanır. <a href="https://developers.google.com/maps/documentation/javascript/get-api-key" target="_blank" rel="noopener">Nasıl alınır?</a></small>
+          </label>
+          <button class="btn primary big" type="submit" id="start-btn">Oyna ▶</button>
+          <p id="save-info" class="muted small"></p>
+          <p id="menu-error" class="error hidden"></p>
+        </form>
+        <footer class="attrib">Harita verisi © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> katkıcıları (ODbL), <a href="https://overturemaps.org" target="_blank" rel="noopener">Overture Maps</a>.</footer>
+      </div>
+    </div>
+    <div id="loading" class="loading hidden"><div class="spinner"></div><p id="loading-text">Yükleniyor…</p></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
