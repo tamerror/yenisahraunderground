@@ -105,6 +105,10 @@ test('map and pause menus open and close', async ({ page }) => {
   await expect(page.locator('.modal-card h2')).toHaveText('Durduruldu');
   await page.click('button[data-a=menu]');
   await expect(page.locator('#menu')).toBeVisible();
+  // starting again after returning to the menu works (resources were released)
+  await page.click('#start-btn');
+  await expect(page.locator('canvas.world-canvas')).toHaveCount(1);
+  await expect(page.locator('#menu')).toBeHidden();
 });
 
 test('Street View mode moves between panoramas and overlays items', async ({ page }) => {

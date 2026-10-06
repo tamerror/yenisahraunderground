@@ -554,7 +554,17 @@ export class World3D {
   }
 
   dispose(): void {
+    this.scene.traverse((o) => {
+      const m = o as THREE.Mesh;
+      m.geometry?.dispose();
+      const mats = Array.isArray(m.material) ? m.material : m.material ? [m.material] : [];
+      for (const mat of mats) {
+        (mat as THREE.MeshBasicMaterial).map?.dispose();
+        mat.dispose();
+      }
+    });
     this.renderer.dispose();
+    this.renderer.forceContextLoss();
     this.renderer.domElement.remove();
   }
 }
