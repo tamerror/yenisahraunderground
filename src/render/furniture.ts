@@ -206,11 +206,16 @@ export class StreetSigns {
     g.add(new THREE.Mesh(this.pole, this.poleMat));
     sp.plates.forEach((pl, i) => {
       const tex = plateTexture(abbreviateStreet(pl.name), this.mahalle);
-      const mat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
-      const plate = new THREE.Mesh(this.plateGeo, mat);
-      plate.position.y = 2.75 - i * 0.5;
-      // plates run parallel to their street (local x/y angle -> world rotation about Y)
+      const mat = new THREE.MeshBasicMaterial({ map: tex });
+      // two single-sided faces so the text reads correctly from both sides
+      const plate = new THREE.Group();
+      const front = new THREE.Mesh(this.plateGeo, mat);
+      const back = new THREE.Mesh(this.plateGeo, mat);
+      back.rotation.y = Math.PI;
+      plate.add(front, back);
+      // plates run parallel to their street (local x/y angle -> world rotation about Y) and hang off the pole
       plate.rotation.y = pl.angle;
+      plate.position.set(Math.cos(pl.angle) * 0.8, 2.75 - i * 0.5, -Math.sin(pl.angle) * 0.8);
       g.add(plate);
     });
     g.position.set(sp.x, 0.1, -sp.y);
@@ -230,7 +235,7 @@ export class StreetSigns {
         this.scene.remove(has);
         has.children.forEach((c, i) => {
           if (i === 0) return;
-          const m = (c as THREE.Mesh).material as THREE.MeshBasicMaterial;
+          const m = (c.children[0] as THREE.Mesh).material as THREE.MeshBasicMaterial;
           m.map?.dispose();
           m.dispose();
         });
