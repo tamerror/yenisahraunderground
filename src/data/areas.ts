@@ -8,7 +8,14 @@ export interface BundledArea {
 }
 
 /** Neighbourhoods shipped with the game (built from Overture Maps by tools/extract_overture.py). */
-export const BUNDLED: BundledArea[] = [{ slug: 'yenisahra', name: 'Yenisahra', district: 'Ataşehir', aliases: ['yenisahra', 'yeni sahra'] }];
+export const BUNDLED: BundledArea[] = [
+  { slug: 'yenisahra', name: 'Yenisahra', district: 'Ataşehir', aliases: ['yenisahra', 'yeni sahra'] },
+  { slug: 'sahrayicedit', name: 'Sahrayıcedit', district: 'Kadıköy', aliases: ['sahrayıcedit', 'sahrayicedit', 'sahrayı cedit', 'sahrayıcedid'] },
+  { slug: 'kozyatagi', name: 'Kozyatağı', district: 'Kadıköy', aliases: ['kozyatağı', 'kozyatagi'] },
+  { slug: 'caferaga', name: 'Moda (Caferağa)', district: 'Kadıköy', aliases: ['moda', 'caferağa', 'caferaga', 'moda (caferağa)'] },
+  { slug: 'kuzguncuk', name: 'Kuzguncuk', district: 'Üsküdar', aliases: ['kuzguncuk'] },
+  { slug: 'cihangir', name: 'Cihangir', district: 'Beyoğlu', aliases: ['cihangir'] },
+];
 
 export function normalizeName(s: string): string {
   return s

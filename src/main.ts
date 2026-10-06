@@ -116,6 +116,14 @@ class App {
     semt.value = s.semt;
     key.value = s.key;
     $('semt-list').innerHTML = BUNDLED.map((b) => `<option value="${b.name}">${b.name}, ${b.district}</option>`).join('');
+    const chips = $('semt-chips');
+    chips.innerHTML = BUNDLED.map((b) => `<button type="button" class="chip" data-semt="${b.name}">${b.name}</button>`).join('');
+    chips.querySelectorAll<HTMLButtonElement>('.chip').forEach((c) =>
+      c.addEventListener('click', () => {
+        semt.value = c.dataset.semt!;
+        this.updateMenu();
+      }),
+    );
     const radios = document.querySelectorAll<HTMLInputElement>('input[name=mode]');
     radios.forEach((r) => {
       r.checked = r.value === s.mode;
@@ -142,6 +150,7 @@ class App {
     document.querySelector('.key-field')!.classList.toggle('hidden', mode !== 'sv');
     const semt = $<HTMLInputElement>('semt').value;
     const b = findBundled(semt);
+    document.querySelectorAll<HTMLButtonElement>('.chip').forEach((c) => c.classList.toggle('on', !!b && c.dataset.semt === b.name));
     $('semt-hint').textContent = b
       ? `✔ ${b.name}, ${b.district}: hazır harita, anında açılır.`
       : semt.trim()

@@ -49,6 +49,8 @@ export class World3D {
   private readonly poiLabels = new Map<number, THREE.Sprite>();
   private readonly questBeams: THREE.Mesh[] = [];
   private readonly compassArrow: THREE.Mesh;
+  private readonly crumbs: THREE.InstancedMesh;
+  private readonly crumbMat = new THREE.MeshBasicMaterial({ color: '#ffd54f', transparent: true, opacity: 0.8, depthWrite: false });
   private readonly magnetRing: THREE.Mesh;
   private readonly lampHeadMat = new THREE.MeshBasicMaterial({ color: '#888' });
   private readonly bursts: Burst[] = [];
@@ -106,6 +108,10 @@ export class World3D {
     );
     this.compassArrow.visible = false;
     this.scene.add(this.compassArrow);
+    this.crumbs = new THREE.InstancedMesh(new THREE.CircleGeometry(0.32, 10).rotateX(-Math.PI / 2), this.crumbMat, 60);
+    this.crumbs.count = 0;
+    this.crumbs.frustumCulled = false;
+    this.scene.add(this.crumbs);
     this.magnetRing = new THREE.Mesh(
       new THREE.RingGeometry(23.5, 24, 64),
       new THREE.MeshBasicMaterial({ color: '#e53935', transparent: true, opacity: 0.35, side: THREE.DoubleSide, depthWrite: false }),
@@ -512,6 +518,37 @@ export class World3D {
       // cone points +Y; tip it forward along the target direction
       this.compassArrow.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(Math.sin(a), 0, -Math.cos(a)));
     }
+    // breadcrumbs along the route guide, animated towards the target
+    let n = 0;
+    if (g.guide) {
+      this.crumbMat.color.set(QUEST_COLORS[g.guide.index % QUEST_COLORS.length]);
+      const path = g.guide.path;
+      const spacing = 3.2;
+      let carry = spacing - ((this.time * 4) % spacing);
+      let walked = 0;
+      for (let i = 1; i < path.length && n < this.crumbs.instanceMatrix.count && walked < 140; i++) {
+        const a = path[i - 1];
+        const b = path[i];
+        const len = Math.hypot(b.x - a.x, b.y - a.y);
+        let d = carry;
+        while (d < len && n < this.crumbs.instanceMatrix.count) {
+          const t = d / len;
+          const x = a.x + (b.x - a.x) * t;
+          const y = a.y + (b.y - a.y) * t;
+          if (Math.hypot(x - p.x, y - p.y) > 2.5) {
+            const s = 1 - Math.min(1, (walked + d) / 160) * 0.5;
+            this.tmpQ.identity();
+            this.tmpM.compose(this.tmpV.set(x, 0.17, -y), this.tmpQ, this.tmpS.set(s, 1, s));
+            this.crumbs.setMatrixAt(n++, this.tmpM);
+          }
+          d += spacing;
+        }
+        carry = d - len;
+        walked += len;
+      }
+    }
+    this.crumbs.count = n;
+    this.crumbs.instanceMatrix.needsUpdate = true;
     this.magnetRing.visible = (g.powerups.miknatis ?? 0) > 0;
     if (this.magnetRing.visible) this.magnetRing.position.set(p.x, 0.2, -p.y);
   }

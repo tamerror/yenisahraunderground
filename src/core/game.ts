@@ -148,6 +148,10 @@ export class Game {
   time = 0;
   currentStreet: string | null = null;
   readonly dailyItem: ItemDef;
+  /** Route to the tracked quest's target (refreshed twice a second). */
+  guide: { questId: number; index: number; path: Vec2[] } | null = null;
+  /** Quest the player chose to follow; defaults to the first quest with a target. */
+  trackedQuest: number | null = null;
   /** Sample ids marked visited during the last update (for minimap fog). */
   readonly freshSamples: number[] = [];
 
@@ -471,6 +475,26 @@ export class Game {
     if (done.length) for (const q of fillQuests(ctx)) this.emit({ type: 'quest-new', quest: q });
   }
 
+  /** Follow a specific quest's target with the route guide. */
+  track(questId: number): void {
+    this.trackedQuest = questId;
+    this.updateGuide();
+  }
+
+  updateGuide(): void {
+    const qs = this.progress.quests;
+    let i = qs.findIndex((q) => q.id === this.trackedQuest);
+    if (i < 0) i = qs.findIndex((q) => this.questTargetPoint(q));
+    const q = qs[i];
+    const t = q ? this.questTargetPoint(q) : null;
+    if (!q || !t) {
+      this.guide = null;
+      return;
+    }
+    const path = this.net.route(this.player, t);
+    this.guide = path ? { questId: q.id, index: i, path } : null;
+  }
+
   /** Replaces an active quest with a fresh one (small cost, for quests the player dislikes). */
   rerollQuest(id: number): boolean {
     const i = this.progress.quests.findIndex((q) => q.id === id);
@@ -728,6 +752,7 @@ export class Game {
       }
     }
     this.signal({ kind: 'tick' });
+    this.updateGuide();
     const badges = checkBadges(this.progress, this.explorePct, { streets: this.net.streets.size, pois: this.pois.length });
     for (const b of badges) this.emit({ type: 'badge', badge: b });
   }

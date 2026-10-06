@@ -20,12 +20,23 @@ async function startGame(page: Page, opts: { semt?: string; mode?: '3d' | 'sv'; 
 
 const dbg = <T>(page: Page, fn: (d: Dbg) => T) => page.evaluate(fn as never, null) as Promise<T>;
 
+test('bundled neighbourhood chips pick a ready map', async ({ page }) => {
+  await page.goto('/');
+  await page.click('.chip[data-semt=Kuzguncuk]');
+  await expect(page.locator('#semt')).toHaveValue('Kuzguncuk');
+  await expect(page.locator('#semt-hint')).toContainText('Üsküdar');
+  await page.click('#start-btn');
+  await page.waitForFunction(() => !!(window as unknown as { __ysu?: unknown }).__ysu, null, { timeout: 30_000 });
+  const name = await page.evaluate(() => (window as unknown as { __ysu: { game: { area: { name: string } } } }).__ysu.game.area.name);
+  expect(name).toBe('Kuzguncuk');
+});
+
 test('menu shows Yenisahra as a ready map', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('h1')).toContainText('Yenisahra');
   await expect(page.locator('#semt')).toHaveValue('Yenisahra');
   await expect(page.locator('#semt-hint')).toContainText('hazır harita');
-  await page.fill('#semt', 'Moda, Kadıköy');
+  await page.fill('#semt', 'Bostancı, Kadıköy');
   await expect(page.locator('#semt-hint')).toContainText("OpenStreetMap");
   await page.check('input[name=mode][value=sv]');
   await expect(page.locator('#apikey')).toBeVisible();
@@ -135,9 +146,9 @@ test('another neighbourhood loads from OpenStreetMap', async ({ page }) => {
   const fixture = JSON.parse(readFileSync(new URL('./osm-fixture.json', import.meta.url), 'utf8'));
   await page.route('https://nominatim.openstreetmap.org/**', (r) => r.fulfill({ json: fixture.nominatim }));
   await page.route('https://overpass-api.de/**', (r) => r.fulfill({ json: { elements: fixture.elements } }));
-  await startGame(page, { semt: 'Moda' });
+  await startGame(page, { semt: 'Bostancı' });
   const name = await dbg(page, () => (window as unknown as { __ysu: Dbg }).__ysu.game.area.name);
-  expect(name).toBe('Moda');
+  expect(name).toBe('Bostancı');
   await expect(page.locator('canvas.world-canvas')).toBeVisible();
 });
 

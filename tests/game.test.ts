@@ -256,3 +256,16 @@ describe('Game on Yenisahra', () => {
     expect(per).toBeLessThan(4);
   });
 });
+
+describe('route guide', () => {
+  it('follows the tracked quest target', () => {
+    const g = new Game(plusArea(), { rng: mulberry32(3) });
+    const poi = g.pois.find((p) => p.type === 'bakery')!;
+    g.progress.quests[0] = { id: 501, type: 'visit', target: poi.index, goal: 1, progress: 0, reward: 10, title: 'x' };
+    g.track(501);
+    expect(g.guide?.questId).toBe(501);
+    expect(g.guide!.path.length).toBeGreaterThan(1);
+    const end = g.guide!.path[g.guide!.path.length - 1];
+    expect(Math.hypot(end.x - poi.x, end.y - poi.y)).toBeLessThan(0.01);
+  });
+});

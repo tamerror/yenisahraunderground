@@ -1,6 +1,7 @@
 import { BADGES } from '../core/badges';
 import { CATS, ITEMS, MAX_MAMA, POI_LABEL, RECORD_TITLES } from '../core/content';
 import type { Game, GameEvent } from '../core/game';
+import type { GamePoi } from '../core/quests';
 import { QUEST_COLORS } from '../render/minimap';
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
@@ -40,6 +41,8 @@ export class Hud {
   modalOpen: 'album' | 'help' | 'pause' | null = null;
   private albumTab = 'items';
   projector: Projector | null = null;
+  private pendingPois: GamePoi[] = [];
+  private poiTimer = 0;
 
   constructor(parent: HTMLElement, private readonly game: Game, private readonly cb: HudCallbacks) {
     this.el = document.createElement('div');
@@ -88,6 +91,10 @@ export class Hud {
         b.blur();
       }),
     );
+    this.$('.quest-list').addEventListener('click', (e) => {
+      const li = (e.target as HTMLElement).closest('li[data-q]') as HTMLElement | null;
+      if (li) game.track(Number(li.dataset.q));
+    });
     this.modal.addEventListener('click', (e) => {
       if (e.target === this.modal) this.closeModal();
     });
@@ -144,7 +151,8 @@ export class Hud {
               : q.progress / q.goal;
         const pct = Math.max(0, Math.min(100, frac * 100));
         const prog = q.type === 'street' ? `${Math.round(pct)}%` : q.type === 'explore' ? `%${q.progress}` : q.type === 'combo' ? `x${q.progress}` : `${q.progress}/${q.goal}`;
-        return `<li style="--qc:${QUEST_COLORS[i]}"><span class="q-title">${esc(q.title)}</span><span class="q-meta"><span class="q-prog">${prog}</span><span class="q-rew">+${q.reward}</span></span><div class="bar"><i style="width:${pct.toFixed(1)}%"></i></div></li>`;
+        const tracked = g.guide?.questId === q.id;
+        return `<li style="--qc:${QUEST_COLORS[i]}" data-q="${q.id}" class="${tracked ? 'tracked' : ''}" title="Yol tarifi için tıkla"><span class="q-title">${tracked ? '🧭 ' : ''}${esc(q.title)}</span><span class="q-meta"><span class="q-prog">${prog}</span><span class="q-rew">+${q.reward}</span></span><div class="bar"><i style="width:${pct.toFixed(1)}%"></i></div></li>`;
       })
       .join('');
     this.set('q', '.quest-list', qs, true);
@@ -215,7 +223,19 @@ export class Hud {
         this.toast(`${e.name} tamamen keşfedildi! +${e.points}`, 'good', '🏁');
         break;
       case 'poi':
-        this.toast(`Mekân keşfedildi: ${e.poi.name}`, 'info', POI_LABEL[e.poi.type].emoji);
+        // dense shopping streets discover many places at once: batch them into one toast
+        this.pendingPois.push(e.poi);
+        if (!this.poiTimer)
+          this.poiTimer = window.setTimeout(() => {
+            const list = this.pendingPois;
+            this.pendingPois = [];
+            this.poiTimer = 0;
+            if (list.length === 1) this.toast(`Mekân keşfedildi: ${list[0].name}`, 'info', POI_LABEL[list[0].type].emoji);
+            else {
+              const names = list.slice(0, 3).map((p) => p.name).join(', ');
+              this.toast(`${list.length} mekân keşfedildi: ${names}${list.length > 3 ? ` +${list.length - 3}` : ''}`, 'info', '🏪');
+            }
+          }, 900);
         break;
       default:
         break;

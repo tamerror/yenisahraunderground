@@ -98,6 +98,17 @@ export class MapRenderer {
     ctx.stroke();
     ctx.setLineDash([]);
 
+    // route guide to the tracked quest
+    if (g.guide && g.guide.path.length > 1) {
+      ctx.strokeStyle = QUEST_COLORS[g.guide.index % QUEST_COLORS.length];
+      ctx.lineWidth = 3 / scale;
+      ctx.setLineDash([6 / scale, 4 / scale]);
+      ctx.beginPath();
+      g.guide.path.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
     // items
     const compass = (g.powerups.pusula ?? 0) > 0;
     for (const it of g.items) {

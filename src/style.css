@@ -57,6 +57,10 @@ a { color: #9ecbff; }
   width: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line); background: #0f1324; color: var(--text); font-size: 16px; outline: none;
 }
 .field input:focus { border-color: var(--accent2); box-shadow: 0 0 0 3px rgba(124, 77, 255, 0.25); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.chip { border: 1px solid var(--line); background: rgba(255,255,255,0.04); border-radius: 999px; padding: 4px 11px; font-size: 13px; cursor: pointer; }
+.chip:hover { background: rgba(255,255,255,0.1); }
+.chip.on { border-color: var(--accent2); background: rgba(124, 77, 255, 0.22); }
 .hint { display: block; color: var(--muted); font-size: 12.5px; margin-top: 6px; }
 .modes { border: 0; padding: 0; margin: 0 0 14px; display: grid; gap: 8px; }
 .mode { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; cursor: pointer; background: rgba(255,255,255,0.02); }
@@ -127,7 +131,9 @@ a { color: #9ecbff; }
 .daily b { color: var(--gold); }
 .quests h4 { margin: 0 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); }
 .quest-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-.quest-list li { font-size: 13px; border-left: 3px solid var(--qc); padding-left: 8px; }
+.quest-list li { font-size: 13px; border-left: 3px solid var(--qc); padding: 2px 4px 2px 8px; cursor: pointer; border-radius: 0 6px 6px 0; }
+.quest-list li:hover { background: rgba(255,255,255,0.05); }
+.quest-list li.tracked { background: rgba(255,255,255,0.07); }
 .q-title { display: block; font-weight: 600; }
 .q-meta { display: flex; justify-content: space-between; color: var(--muted); font-size: 12px; }
 .q-rew { color: var(--gold); font-weight: 700; }
