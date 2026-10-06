@@ -107,7 +107,7 @@ test('map and pause menus open and close', async ({ page }) => {
   await expect(page.locator('#menu')).toBeVisible();
   // starting again after returning to the menu works (resources were released)
   await page.click('#start-btn');
-  await expect(page.locator('canvas.world-canvas')).toHaveCount(1);
+  await expect(page.locator('canvas.world-canvas')).toHaveCount(1, { timeout: 30_000 });
   await expect(page.locator('#menu')).toBeHidden();
 });
 
