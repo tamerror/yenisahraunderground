@@ -166,8 +166,9 @@ export class Hud {
     t.innerHTML = `${emoji ? `<span class="t-emoji">${emoji}</span>` : ''}<span>${esc(text)}</span>`;
     box.prepend(t);
     while (box.children.length > 4) box.lastElementChild!.remove();
-    setTimeout(() => t.classList.add('out'), kind === 'badge' || kind === 'rare' ? 3800 : 2600);
-    setTimeout(() => t.remove(), kind === 'badge' || kind === 'rare' ? 4300 : 3100);
+    const life = kind === 'warn' ? 6000 : kind === 'badge' || kind === 'rare' ? 3800 : 2600;
+    setTimeout(() => t.classList.add('out'), life);
+    setTimeout(() => t.remove(), life + 500);
   }
 
   private popup(x: number, y: number, text: string, color: string): void {

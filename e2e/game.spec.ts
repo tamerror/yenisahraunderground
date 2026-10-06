@@ -74,6 +74,7 @@ test('collecting an item updates score, toast and album; progress survives reloa
     g.player.x = it.x;
     g.player.y = it.y;
   });
+  await page.waitForFunction(() => ((window as unknown as { __ysu: Dbg }).__ysu.game.progress.counts.simit ?? 0) >= 1, null, { timeout: 20_000 });
   await expect(page.locator('[data-testid=score]')).not.toHaveText('0', { timeout: 10_000 });
   await expect(page.locator('.toast').first()).toBeVisible();
   const score = await dbg(page, () => (window as unknown as { __ysu: Dbg }).__ysu.game.progress.score);
@@ -139,7 +140,7 @@ test('a rejected Google key falls back to the 3D city', async ({ page }) => {
   await page.route('https://maps.googleapis.com/maps/api/js**', (r) => r.fulfill({ contentType: 'text/javascript', body: stub }));
   await startGame(page, { mode: 'sv', key: 'BAD' });
   await expect(page.locator('canvas.world-canvas')).toBeVisible();
-  await expect(page.locator('.toast.warn').first()).toContainText('Street View açılamadı');
+  await expect(page.locator('.toast.warn').first()).toContainText('Street View açılamadı', { timeout: 15_000 });
 });
 
 test('another neighbourhood loads from OpenStreetMap', async ({ page }) => {

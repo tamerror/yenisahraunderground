@@ -221,9 +221,10 @@ class App {
           await sv.ready;
         } catch (err) {
           sv.dispose();
-          this.hud.toast(`Street View açılamadı: ${(err as Error).message}. 3D moda geçildi.`, 'warn', '⚠️');
           game.config = CONFIG_3D;
           this.renderer = await this.make3D(game);
+          // shown once the 3D city is up so the message is not lost behind the loading screen
+          this.hud.toast(`Street View açılamadı: ${(err as Error).message}. 3D moda geçildi.`, 'warn', '⚠️');
         }
         if (!this.renderer) this.renderer = sv;
       } else {
