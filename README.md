@@ -18,7 +18,10 @@ npm install
 npm run dev        # http://localhost:5173
 ```
 
-Menüde semt adını yaz (Yenisahra hazır gelir), görünümü seç, **Oyna**.
+Menüde semt adını yaz ya da hazır haritalardan birini seç, görünümü seç, **Oyna**.
+
+Hazır gelen (internetsiz, anında açılan) haritalar: **Yenisahra** (Ataşehir), **Sahrayıcedit**, **Kozyatağı**,
+**Moda (Caferağa)** (Kadıköy), **Kuzguncuk** (Üsküdar), **Cihangir** (Beyoğlu).
 
 ### Kontroller
 
@@ -50,6 +53,8 @@ Dokunmatik ekranlarda sol altta sanal joystick ve 🏃 koşma düğmesi çıkar.
 - **Underground plakları:** 7 plak çıkmaz sokakların sonunda saklıdır ve haritada görünmez. Bulduğun plakları
   albümde **çalabilirsin** (her biri prosedürel üretilmiş farklı bir parça).
 - **Güçlendirmeler:** 🧲 mıknatıs (eşyaları çeker), 🛴 scooter (hız), 🧭 pusula (en yakın plağı gösterir).
+- **Yol tarifi:** takip edilen görevin hedefine giden en kısa yol mini haritada kesikli çizgi, 3D'de yerde akan
+  ışıklı iz olarak görünür. Görev paneline tıklayarak hangi görevi takip edeceğini seçersin.
 - **Görevler:** her an 3 aktif görev vardır (eşya topla, sokağı baştan sona yürü, mekâna uğra, kedi besle, kombo yap,
   mahallenin %X'ini keşfet). Hedefler 3D'de renkli ışık sütunu, haritada elmas olarak görünür.
 - **Seviyeler ve rozetler:** Yabancı → Misafir → Komşu → Mahalleli → Esnaf → Muhtar → Mahalle Efsanesi → Semt Kahramanı → Underground Efsanesi; 25 rozet.
@@ -88,7 +93,12 @@ npm run e2e        # uçtan uca testler (Playwright, Chromium): menü, yürüme,
                    # Street View (sahte Google API ile), OSM yükleme (sahte yanıtlarla), mobil joystick
 npm run typecheck
 npm run build      # dist/ — statik site, herhangi bir yerde barındırılabilir
+npm run build:artifact   # dist-artifact/game.html — tek sayfalık sürüm (claude.ai Artifact olarak yayınlamak için)
 ```
+
+`tests/playtest.test.ts` oyunu 10 dakika boyunca otomatik oynayan bir bot çalıştırır (rota bulma ile eşya ve
+görev hedeflerine gider); puan akışının sürdüğünü, görevlerin tamamlanabildiğini ve oyuncunun hiçbir yerde
+takılmadığını kontrol eder.
 
 Kod yapısı:
 
