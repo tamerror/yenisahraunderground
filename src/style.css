@@ -28,7 +28,7 @@ a { color: #9ecbff; }
 .hidden { display: none !important; }
 .muted { color: var(--muted); }
 .small { font-size: 12.5px; }
-.error { color: #ff8a80; font-weight: 600; }
+.error { color: #ff8a80; font-weight: 600; line-height: 1.45; overflow-wrap: anywhere; }
 
 /* ---------------------------------------------------------------- menu */
 .menu {
@@ -66,6 +66,8 @@ a { color: #9ecbff; }
 .mode { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; cursor: pointer; background: rgba(255,255,255,0.02); }
 .mode:has(input:checked) { border-color: var(--accent2); background: rgba(124, 77, 255, 0.12); }
 .mode input { margin-top: 4px; accent-color: var(--accent2); }
+.mode.disabled { opacity: 0.6; cursor: not-allowed; }
+.mode.disabled small { color: #ffcc80; }
 .mode small { display: block; color: var(--muted); }
 .btn {
   border: 1px solid var(--line); background: rgba(255, 255, 255, 0.06); padding: 10px 16px; border-radius: 12px; cursor: pointer; font-weight: 600;

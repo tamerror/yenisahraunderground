@@ -55,23 +55,78 @@ const CAMERA_H = 2.6;
 const OVERLAY_DIST = 95;
 
 let loader: Promise<SvLib> | null = null;
+/** Explanation of the last key rejection (Google may reject a key after the script has loaded). */
+let authError: string | null = null;
+const authListeners = new Set<(msg: string) => void>();
+
+/** Called whenever Google rejects the key, also after the panorama is already showing. */
+export function onMapsAuthFailure(fn: (msg: string) => void): () => void {
+  authListeners.add(fn);
+  return () => authListeners.delete(fn);
+}
+
+/** Turkish explanation for the error codes the Maps JS API prints to the console. */
+export function explainMapsError(code: string | null, origin: string): string {
+  switch (code) {
+    case 'InvalidKeyMapError':
+      return 'Anahtar geçersiz. Google Cloud Console > Credentials sayfasından anahtarı eksiksiz kopyaladığından emin ol.';
+    case 'MissingKeyMapError':
+      return 'Anahtar boş gönderildi. Anahtarı menüdeki alana yapıştır.';
+    case 'ExpiredKeyMapError':
+      return 'Anahtarın süresi dolmuş ya da silinmiş. Yeni bir anahtar oluştur.';
+    case 'ApiNotActivatedMapError':
+      return 'Projede "Maps JavaScript API" etkin değil. Google Cloud Console > APIs & Services > Library > "Maps JavaScript API" > Enable.';
+    case 'BillingNotEnabledMapError':
+      return 'Projede faturalandırma açık değil. Street View için Google Cloud\'da bir faturalandırma hesabı bağlaman gerekir (aylık ücretsiz kota var).';
+    case 'RefererNotAllowedMapError':
+      return `Anahtar bu adresten kullanılmaya izin vermiyor (${origin}). Anahtarın "Website restrictions" listesine ${origin}/* ekle ya da kısıtlamayı kaldır.`;
+    case 'ApiTargetBlockedMapError':
+      return 'Anahtarın "API restrictions" listesinde Maps JavaScript API seçili değil. Listeye ekle ya da kısıtlamayı kaldır.';
+    case 'DeletedApiProjectMapError':
+      return 'Anahtarın bağlı olduğu Google Cloud projesi silinmiş.';
+    default:
+      return 'Google anahtarı reddetti. Kontrol et: Maps JavaScript API etkin mi, faturalandırma açık mı, anahtarın alan adı kısıtlamasında bu adres var mı?';
+  }
+}
 
 /** Loads the Maps JS API once per page. */
 export function loadGoogleMaps(key: string): Promise<SvLib> {
   if (loader) return loader;
   loader = new Promise<SvLib>((resolve, reject) => {
     let timer = 0;
+    // Google reports the exact reason only on the console ("Google Maps JavaScript API error: XyzMapError")
+    let code: string | null = null;
+    const origError = console.error;
+    console.error = (...args: unknown[]) => {
+      const m = String(args[0] ?? '').match(/([A-Za-z]+MapError)/);
+      if (m) code = m[1];
+      origError.apply(console, args as []);
+    };
+    const restore = () => {
+      if (console.error !== origError) console.error = origError;
+    };
     const fail = (msg: string) => {
       clearTimeout(timer);
+      restore();
       loader = null;
       reject(new Error(msg));
     };
-    window.gm_authFailure = () => fail('API anahtarı reddedildi (Maps JavaScript API etkin mi, faturalandırma açık mı?)');
+    // the console message is printed just before this callback fires; give it a moment
+    authError = null;
+    window.gm_authFailure = () =>
+      setTimeout(() => {
+        authError = explainMapsError(code, location.origin);
+        fail(authError);
+        for (const l of authListeners) l(authError);
+      }, 50);
     window.__ysuGmReady = async () => {
       clearTimeout(timer);
       try {
         const g = window.google!.maps;
-        resolve(g.importLibrary ? await g.importLibrary('streetView') : g);
+        const lib = g.importLibrary ? await g.importLibrary('streetView') : g;
+        // keep listening a little longer: key problems are reported after the script has loaded
+        setTimeout(restore, 8000);
+        resolve(lib);
       } catch (e) {
         fail((e as Error).message);
       }
@@ -79,9 +134,12 @@ export function loadGoogleMaps(key: string): Promise<SvLib> {
     const s = document.createElement('script');
     s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&v=weekly&loading=async&callback=__ysuGmReady&language=tr&region=TR`;
     s.async = true;
-    s.onerror = () => fail('Google Maps yüklenemedi (internet bağlantısı?)');
+    s.onerror = () =>
+      fail(
+        'Google Maps betiği yüklenemedi. İnternet bağlantını kontrol et. Oyunu Claude\'daki önizleme (artifact) sayfasında açtıysan: o sayfa Google\'a bağlanmayı engeller, Street View için oyunu kendi sitesinden ya da bilgisayarında açman gerekir.',
+      );
     document.head.appendChild(s);
-    timer = window.setTimeout(() => fail('Google Maps yanıt vermedi'), 20000);
+    timer = window.setTimeout(() => fail('Google Maps 20 saniye içinde yanıt vermedi. İnternet bağlantını kontrol et.'), 20000);
   });
   return loader;
 }
@@ -165,7 +223,11 @@ export class StreetViewMode {
         /* try a larger radius */
       }
     }
-    if (!panoId) throw new Error('Bu konumda Street View görüntüsü yok');
+    if (!panoId) {
+      // a rejected key also makes every lookup fail; prefer that explanation when it arrives
+      await new Promise((r) => setTimeout(r, 400));
+      throw new Error(authError ?? 'Bu konumun 500 m yakınında Street View görüntüsü bulunamadı.');
+    }
     this.pano = new lib.StreetViewPanorama(this.el, {
       pano: panoId,
       pov: { heading: (p.heading / D2R + 360) % 360, pitch: 0 },

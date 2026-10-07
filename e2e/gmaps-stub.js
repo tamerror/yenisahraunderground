@@ -39,6 +39,20 @@
   window.google = { maps: { StreetViewService, StreetViewPanorama, StreetViewSource: { OUTDOOR: 'outdoor' }, StreetViewPreference: { NEAREST: 'nearest' } } };
   const src = document.currentScript && document.currentScript.src;
   const params = new URL(src).searchParams;
-  if (params.get('key') === 'BAD') setTimeout(() => window.gm_authFailure && window.gm_authFailure(), 0);
-  else setTimeout(() => window[params.get('callback')](), 0);
+  const key = params.get('key');
+  if (key === 'BAD') setTimeout(() => window.gm_authFailure && window.gm_authFailure(), 0);
+  else if (key === 'REFERER')
+    setTimeout(() => {
+      console.error('Google Maps JavaScript API error: RefererNotAllowedMapError\nhttps://developers.google.com/maps/documentation/javascript/error-messages#referer-not-allowed-map-error');
+      window.gm_authFailure && window.gm_authFailure();
+    }, 0);
+  else {
+    setTimeout(() => window[params.get('callback')](), 0);
+    // Google can also reject a key after the script has loaded
+    if (key === 'LATE')
+      setTimeout(() => {
+        console.error('Google Maps JavaScript API error: ApiNotActivatedMapError');
+        window.gm_authFailure && window.gm_authFailure();
+      }, 1500);
+  }
 })();

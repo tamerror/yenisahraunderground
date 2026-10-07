@@ -140,11 +140,36 @@ test('Street View mode moves between panoramas and overlays items', async ({ pag
   expect(drawn).toBeGreaterThan(50);
 });
 
-test('a rejected Google key falls back to the 3D city', async ({ page }) => {
+test('a rejected Google key returns to the menu with the reason', async ({ page }) => {
   await page.route('https://maps.googleapis.com/maps/api/js**', (r) => r.fulfill({ contentType: 'text/javascript', body: stub }));
-  await startGame(page, { mode: 'sv', key: 'BAD' });
-  await expect(page.locator('canvas.world-canvas')).toBeVisible();
-  await expect(page.locator('.toast.warn').first()).toContainText('Street View açılamadı', { timeout: 15_000 });
+  await page.goto('/');
+  await page.check('input[name=mode][value=sv]');
+  await page.fill('#apikey', 'REFERER');
+  await page.click('#start-btn');
+  await expect(page.locator('#menu-error')).toContainText('Website restrictions', { timeout: 15_000 });
+  await expect(page.locator('#menu-error')).toContainText('localhost:4173');
+  await expect(page.locator('#menu')).toBeVisible();
+  // the key stays filled in so it can be fixed and retried
+  await expect(page.locator('#apikey')).toHaveValue('REFERER');
+  await page.fill('#apikey', 'BAD');
+  await page.click('#start-btn');
+  await expect(page.locator('#menu-error')).toContainText('Maps JavaScript API etkin mi', { timeout: 15_000 });
+});
+
+test('a key rejected after loading also returns to the menu', async ({ page }) => {
+  await page.route('https://maps.googleapis.com/maps/api/js**', (r) => r.fulfill({ contentType: 'text/javascript', body: stub }));
+  await startGame(page, { mode: 'sv', key: 'LATE' });
+  await expect(page.locator('#menu-error')).toContainText('Maps JavaScript API" etkin değil', { timeout: 15_000 });
+  await expect(page.locator('#menu')).toBeVisible();
+});
+
+test('a blocked Google script explains why', async ({ page }) => {
+  await page.route('https://maps.googleapis.com/maps/api/js**', (r) => r.abort());
+  await page.goto('/');
+  await page.check('input[name=mode][value=sv]');
+  await page.fill('#apikey', 'ANY');
+  await page.click('#start-btn');
+  await expect(page.locator('#menu-error')).toContainText('betiği yüklenemedi', { timeout: 15_000 });
 });
 
 test('another neighbourhood loads from OpenStreetMap', async ({ page }) => {

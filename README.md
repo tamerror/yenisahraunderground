@@ -92,7 +92,21 @@ setinden S3 üzerinden okur.
 2. **Maps JavaScript API**'yi etkinleştir, **Credentials → Create credentials → API key**.
 3. Anahtarı **HTTP referrer** ile kendi alan adına (ör. `https://kullanici.github.io/*`, `http://localhost:5173/*`) kısıtla.
 4. Oyunda "Google Street View" modunu seçip anahtarı yapıştır. Anahtar yalnızca senin tarayıcında saklanır,
-   repoya girmez. Anahtar reddedilirse oyun otomatik olarak 3D moda geçer.
+   repoya girmez.
+
+**Anahtar reddedilirse** oyun menüye döner ve Google'ın verdiği sebebi anahtar alanının altında Türkçe yazar:
+
+| Mesaj | Çözüm |
+| --- | --- |
+| "Maps JavaScript API etkin değil" | Cloud Console → APIs & Services → Library → **Maps JavaScript API** → Enable |
+| "Faturalandırma açık değil" | Projeye bir faturalandırma hesabı bağla (Street View'ın aylık ücretsiz kotası var) |
+| "Anahtar bu adresten kullanılmaya izin vermiyor (…)" | Anahtarın **Website restrictions** listesine mesajdaki adresi `/*` ile ekle (ör. `https://tamerror.github.io/*`, `http://localhost:5173/*`) |
+| "API restrictions listesinde Maps JavaScript API seçili değil" | Anahtarın API kısıtlamasına Maps JavaScript API'yi ekle |
+| "Google Maps betiği yüklenemedi" | İnternet bağlantısı yok ya da sayfa Google'a bağlanmayı engelliyor |
+
+Claude'da yayınlanan önizleme (artifact) sayfası güvenlik gereği Google Maps betiğini hiç yüklemez; orada Street View
+seçeneği kapalıdır. Street View için oyunu GitHub Pages'ten ya da bilgisayarında `npm run dev` ile aç. Ayarlarda
+yapılan değişikliklerin Google tarafında geçerli olması birkaç dakika sürebilir.
 
 ## Geliştirme
 

@@ -90,6 +90,7 @@ class App {
   private paused = false;
   private slowFrames = 0;
   private dayMode: DayMode = 'auto';
+  private offAuth: (() => void) | null = null;
   private readonly root = $('game-root');
   private onResize = () => this.renderer?.resize();
 
@@ -124,6 +125,15 @@ class App {
         this.updateMenu();
       }),
     );
+    if (import.meta.env.VITE_ARTIFACT === '1') {
+      // this build runs inside the claude.ai preview, which never lets the Google Maps script load
+      s.mode = '3d';
+      const sv = document.querySelector<HTMLInputElement>('input[name=mode][value=sv]')!;
+      sv.disabled = true;
+      $('mode-sv').classList.add('disabled');
+      $('sv-note').textContent =
+        'Bu önizleme sayfasında kullanılamaz: sayfa Google Maps\'e bağlanmayı engelliyor. Street View için oyunu kendi sitesinden (GitHub Pages) ya da bilgisayarında açman gerekir.';
+    }
     const radios = document.querySelectorAll<HTMLInputElement>('input[name=mode]');
     radios.forEach((r) => {
       r.checked = r.value === s.mode;
@@ -215,18 +225,19 @@ class App {
       this.hud.setMuted(this.sfx.muted);
       if (settings.mode === 'sv') {
         this.setLoading('Google Street View açılıyor…');
-        const { StreetViewMode } = await import('./render/streetview');
+        const { StreetViewMode, onMapsAuthFailure } = await import('./render/streetview');
         const sv = new StreetViewMode(this.root, game, settings.key, this.input);
         try {
           await sv.ready;
         } catch (err) {
-          sv.dispose();
-          game.config = CONFIG_3D;
-          this.renderer = await this.make3D(game);
-          // shown once the 3D city is up so the message is not lost behind the loading screen
-          this.hud.toast(`Street View açılamadı: ${(err as Error).message}. 3D moda geçildi.`, 'warn', '⚠️');
+          // back to the menu with the reason next to the key field, so the key can be fixed
+          throw new Error(`Street View açılamadı: ${(err as Error).message} (İstersen "3D Mahalle" ile anahtarsız oynayabilirsin.)`);
         }
-        if (!this.renderer) this.renderer = sv;
+        this.renderer = sv;
+        this.offAuth = onMapsAuthFailure((msg) => {
+          this.toMenu();
+          this.menuError(`Google anahtarı reddetti: ${msg}`);
+        });
       } else {
         this.renderer = await this.make3D(game);
       }
@@ -400,6 +411,8 @@ class App {
 
   private teardown(): void {
     cancelAnimationFrame(this.raf);
+    this.offAuth?.();
+    this.offAuth = null;
     this.sfx.stopRecord();
     this.game?.save();
     this.renderer?.dispose();
