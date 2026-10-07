@@ -164,6 +164,31 @@ test('a key rejected after loading also returns to the menu', async ({ page }) =
   await expect(page.locator('#menu')).toBeVisible();
 });
 
+test('Street View falls back to the panorama itself when the lookup service finds nothing', async ({ page }) => {
+  await page.route('https://maps.googleapis.com/maps/api/js**', (r) => r.fulfill({ contentType: 'text/javascript', body: stub }));
+  await startGame(page, { mode: 'sv', key: 'NOSERVICE' });
+  await expect(page.locator('.sv-pano')).toBeVisible();
+  // several candidate points and radii were tried, without restricting the imagery source
+  const reqs = await page.evaluate(() => (window as unknown as { __svRequests: { radius: number; source?: string }[] }).__svRequests);
+  expect(reqs.length).toBeGreaterThanOrEqual(6);
+  expect(reqs.every((r) => r.source === undefined)).toBe(true);
+  const before = await dbg(page, () => ({ ...(window as unknown as { __ysu: Dbg }).__ysu.game.player }));
+  await page.keyboard.press('ArrowUp');
+  await page.waitForFunction(() => (window as unknown as { __svSteps: number }).__svSteps >= 2);
+  const after = await dbg(page, () => ({ ...(window as unknown as { __ysu: Dbg }).__ysu.game.player }));
+  expect(Math.hypot(after.x - before.x, after.y - before.y)).toBeGreaterThan(8);
+});
+
+test('a denied Street View lookup says what Google answered', async ({ page }) => {
+  await page.route('https://maps.googleapis.com/maps/api/js**', (r) => r.fulfill({ contentType: 'text/javascript', body: stub }));
+  await page.goto('/');
+  await page.check('input[name=mode][value=sv]');
+  await page.fill('#apikey', 'DENIED');
+  await page.click('#start-btn');
+  await expect(page.locator('#menu-error')).toContainText('REQUEST_DENIED', { timeout: 20_000 });
+  await expect(page.locator('#menu-error')).toContainText('faturalandırma');
+});
+
 test('a blocked Google script explains why', async ({ page }) => {
   await page.route('https://maps.googleapis.com/maps/api/js**', (r) => r.abort());
   await page.goto('/');

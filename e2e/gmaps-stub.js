@@ -7,8 +7,12 @@
   const panos = {};
   let n = 0;
   const panoAt = (lat, lng) => { const id = 'p' + n++; panos[id] = { lat, lng }; return id; };
+  const KEY = new URL(document.currentScript.src).searchParams.get('key');
   class StreetViewService {
     async getPanorama(req) {
+      window.__svRequests = (window.__svRequests || []).concat([req]);
+      if (KEY === 'NOSERVICE') throw Object.assign(new Error('StreetViewService.getPanorama: ZERO_RESULTS'), { code: 'ZERO_RESULTS' });
+      if (KEY === 'DENIED') throw Object.assign(new Error('StreetViewService.getPanorama: REQUEST_DENIED'), { code: 'REQUEST_DENIED' });
       const id = panoAt(req.location.lat, req.location.lng);
       return { data: { location: { pano: id, latLng: new LatLng(req.location.lat, req.location.lng) } } };
     }
@@ -18,8 +22,14 @@
       this.el = el; this.l = {}; this.pov = opts.pov; this.zoom = opts.zoom ?? 1;
       el.style.background = 'linear-gradient(#8ec5ff, #d9d4c7 60%, #6b6b6b)';
       window.__svStub = this; window.__svSteps = 0;
-      this.setPano(opts.pano);
+      if (opts.pano) this.setPano(opts.pano);
+      else if (opts.position) {
+        this.status = KEY === 'DENIED' ? 'REQUEST_DENIED' : 'OK';
+        if (this.status === 'OK') this.setPano(panoAt(opts.position.lat, opts.position.lng));
+        setTimeout(() => this.fire('status_changed'), 10);
+      }
     }
+    getStatus() { return this.status || 'OK'; }
     addListener(ev, fn) { (this.l[ev] = this.l[ev] || []).push(fn); return { remove() {} }; }
     fire(ev) { (this.l[ev] || []).forEach((f) => f()); }
     setPano(id) { this.pano = id; window.__svSteps++; this.fire('position_changed'); }

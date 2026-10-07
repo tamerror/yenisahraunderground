@@ -27,6 +27,7 @@ interface SvPanorama {
   setPov(p: Pov): void;
   getZoom(): number;
   getLinks(): SvLink[] | null;
+  getStatus?(): string;
   addListener(ev: string, fn: () => void): { remove(): void };
   setVisible(v: boolean): void;
 }
@@ -87,6 +88,25 @@ export function explainMapsError(code: string | null, origin: string): string {
     default:
       return 'Google anahtarı reddetti. Kontrol et: Maps JavaScript API etkin mi, faturalandırma açık mı, anahtarın alan adı kısıtlamasında bu adres var mı?';
   }
+}
+
+/** Status / error code of a failed Street View lookup (e.g. ZERO_RESULTS, REQUEST_DENIED). */
+export function mapsErrorCode(e: unknown): string {
+  const code = (e as { code?: unknown })?.code;
+  if (typeof code === 'string' && code) return code;
+  const m = String((e as Error)?.message ?? e).match(/\b([A-Z][A-Z_]{4,})\b/);
+  return m ? m[1] : 'UNKNOWN_ERROR';
+}
+
+/** Turkish explanation for Street View lookups that found nothing. */
+export function explainLookupFailure(codes: string[]): string {
+  const list = codes.filter(Boolean).join(', ') || 'yanıt yok';
+  if (codes.some((c) => c === 'REQUEST_DENIED' || c === 'NOT_AUTHORIZED'))
+    return `Google bu anahtarla Street View isteğini reddetti (${list}). Projede faturalandırma açık mı, anahtarın API kısıtlamasında Maps JavaScript API seçili mi?`;
+  if (codes.includes('OVER_QUERY_LIMIT')) return `Google kullanım kotası doldu (${list}). Biraz bekleyip tekrar dene ya da Cloud Console'da kotayı kontrol et.`;
+  if (codes.length && codes.every((c) => c === 'ZERO_RESULTS'))
+    return 'Google bu bölgede Street View görüntüsü bulamadı (ZERO_RESULTS). Başka bir semtle dene.';
+  return `Google Street View görüntüsü getirilemedi (Google yanıtı: ${list}). Biraz sonra tekrar dene; sorun sürerse bu mesajı paylaş.`;
 }
 
 /** Loads the Maps JS API once per page. */
@@ -203,33 +223,67 @@ export class StreetViewMode {
     this.ready = this.init(key);
   }
 
+  /** Where to look for a first panorama: the player, then nearby bigger streets (better coverage). */
+  private candidates(): LatLngLiteral[] {
+    const g = this.game;
+    const pts = [{ x: g.player.x, y: g.player.y }];
+    const big = g.net.segs
+      .filter((sg) => sg.main && (sg.kind === 'primary' || sg.kind === 'secondary' || sg.kind === 'tertiary'))
+      .map((sg) => ({ x: (sg.ax + sg.bx) / 2, y: (sg.ay + sg.by) / 2 }))
+      .map((m) => ({ m, d: Math.hypot(m.x - g.player.x, m.y - g.player.y) }))
+      .sort((a, b) => a.d - b.d);
+    for (const { m } of big) {
+      if (pts.length >= 3) break;
+      if (pts.every((q) => Math.hypot(q.x - m.x, q.y - m.y) > 120)) pts.push(m);
+    }
+    pts.push(g.net.snap({ x: 0, y: 0 }));
+    return pts.map((v) => {
+      const [lng, lat] = g.proj.toLonLat(v);
+      return { lat, lng };
+    });
+  }
+
   private async init(key: string): Promise<void> {
     const lib = await loadGoogleMaps(key);
     const svc = new lib.StreetViewService();
     const p = this.game.player;
-    const [lng, lat] = this.game.proj.toLonLat(p);
+    const codes = new Set<string>();
     let panoId: string | null = null;
-    for (const radius of [40, 150, 500]) {
-      try {
-        const res = await svc.getPanorama({
-          location: { lat, lng } as LatLngLiteral,
-          radius,
-          source: lib.StreetViewSource?.OUTDOOR ?? 'outdoor',
-          preference: lib.StreetViewPreference?.NEAREST ?? 'nearest',
-        });
-        panoId = res.data.location?.pano ?? null;
-        if (panoId) break;
-      } catch {
-        /* try a larger radius */
+    let position: LatLngLiteral | null = null;
+    search: for (const location of this.candidates())
+      for (const radius of [50, 200, 600]) {
+        try {
+          // no source/preference filter: let Google search every kind of imagery
+          const res = await svc.getPanorama({ location, radius });
+          panoId = res.data.location?.pano ?? null;
+          if (panoId) break search;
+        } catch (e) {
+          codes.add(mapsErrorCode(e));
+          if (authError) break search;
+        }
       }
+    if (!panoId && !authError) {
+      // second route: let the panorama find imagery near a position by itself
+      const loc = this.candidates()[0];
+      const probe = new lib.StreetViewPanorama(this.el, { position: loc, visible: true });
+      const status = await new Promise<string>((resolve) => {
+        const l = probe.addListener('status_changed', () => {
+          l.remove();
+          resolve(probe.getStatus?.() ?? 'UNKNOWN_ERROR');
+        });
+        setTimeout(() => resolve('TIMEOUT'), 8000);
+      });
+      if (status === 'OK') position = loc;
+      else codes.add(status);
+      probe.setVisible(false);
     }
-    if (!panoId) {
+    if (!panoId && !position) {
       // a rejected key also makes every lookup fail; prefer that explanation when it arrives
       await new Promise((r) => setTimeout(r, 400));
-      throw new Error(authError ?? 'Bu konumun 500 m yakınında Street View görüntüsü bulunamadı.');
+      throw new Error(authError ?? explainLookupFailure([...codes]));
     }
     this.pano = new lib.StreetViewPanorama(this.el, {
-      pano: panoId,
+      ...(panoId ? { pano: panoId } : { position }),
       pov: { heading: (p.heading / D2R + 360) % 360, pitch: 0 },
       zoom: 1,
       addressControl: false,
