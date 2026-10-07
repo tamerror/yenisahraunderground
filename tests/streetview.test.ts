@@ -42,3 +42,18 @@ describe('Street View helpers', () => {
     expect(p.x).toBeCloseTo(500, 5);
   });
 });
+
+describe('Street View lookup errors', () => {
+  it('reads the status code from Maps errors', async () => {
+    const { mapsErrorCode } = await import('../src/render/streetview');
+    expect(mapsErrorCode({ code: 'ZERO_RESULTS' })).toBe('ZERO_RESULTS');
+    expect(mapsErrorCode(new Error('StreetViewService.getPanorama: REQUEST_DENIED'))).toBe('REQUEST_DENIED');
+    expect(mapsErrorCode(new Error('boom'))).toBe('UNKNOWN_ERROR');
+  });
+  it('explains the likely cause in Turkish', async () => {
+    const { explainLookupFailure } = await import('../src/render/streetview');
+    expect(explainLookupFailure(['REQUEST_DENIED'])).toMatch(/faturalandırma/);
+    expect(explainLookupFailure(['ZERO_RESULTS', 'ZERO_RESULTS'])).toMatch(/ZERO_RESULTS/);
+    expect(explainLookupFailure(['UNKNOWN_ERROR', 'TIMEOUT'])).toMatch(/UNKNOWN_ERROR, TIMEOUT/);
+  });
+});
