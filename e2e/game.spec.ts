@@ -22,13 +22,14 @@ const dbg = <T>(page: Page, fn: (d: Dbg) => T) => page.evaluate(fn as never, nul
 
 test('bundled neighbourhood chips pick a ready map', async ({ page }) => {
   await page.goto('/');
-  await page.click('.chip[data-semt=Kuzguncuk]');
-  await expect(page.locator('#semt')).toHaveValue('Kuzguncuk');
-  await expect(page.locator('#semt-hint')).toContainText('Üsküdar');
+  await expect(page.locator('.chip')).toHaveCount(3);
+  await page.click('.chip[data-semt=Fikirtepe]');
+  await expect(page.locator('#semt')).toHaveValue('Fikirtepe');
+  await expect(page.locator('#semt-hint')).toContainText('Kadıköy');
   await page.click('#start-btn');
   await page.waitForFunction(() => !!(window as unknown as { __ysu?: unknown }).__ysu, null, { timeout: 30_000 });
   const name = await page.evaluate(() => (window as unknown as { __ysu: { game: { area: { name: string } } } }).__ysu.game.area.name);
-  expect(name).toBe('Kuzguncuk');
+  expect(name).toBe('Fikirtepe');
 });
 
 test('menu shows Yenisahra as a ready map', async ({ page }) => {

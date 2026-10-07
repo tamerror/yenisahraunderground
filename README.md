@@ -20,8 +20,7 @@ npm run dev        # http://localhost:5173
 
 Menüde semt adını yaz ya da hazır haritalardan birini seç, görünümü seç, **Oyna**.
 
-Hazır gelen (internetsiz, anında açılan) haritalar: **Yenisahra** (Ataşehir), **Sahrayıcedit**, **Kozyatağı**,
-**Moda (Caferağa)** (Kadıköy), **Kuzguncuk** (Üsküdar), **Cihangir** (Beyoğlu).
+Hazır gelen (internetsiz, anında açılan) haritalar: **Yenisahra** (Ataşehir), **Fikirtepe** ve **Moda (Caferağa)** (Kadıköy).
 
 ### Kontroller
 
@@ -79,7 +78,7 @@ Hazır gelen (anında açılan) haritalar `public/data/` altında. Yenisini ekle
 
 ```bash
 pip install pyarrow shapely
-python3 tools/extract_overture.py --name Kozyatağı --slug kozyatagi --full "Kozyatağı, Kadıköy, İstanbul"
+python3 tools/extract_overture.py --name Fikirtepe --slug fikirtepe --full "Fikirtepe Mahallesi, Kadıköy, İstanbul"
 ```
 
 ve `src/data/areas.ts` içindeki `BUNDLED` listesine ekle. Betik veriyi **Overture Maps** (OSM tabanlı) açık veri
